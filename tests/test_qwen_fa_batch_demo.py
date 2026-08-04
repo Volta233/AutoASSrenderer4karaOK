@@ -9,10 +9,18 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lyricalign.demo.batch import IndividualMode, build_output_plan, discover_jobs
+from lyricalign.demo.batch import (
+    IndividualMode,
+    build_output_plan,
+    discover_job_with_explicit_lyrics,
+    discover_jobs,
+)
 from lyricalign.demo.media_render import (
+    SubtitleStyle,
     VideoGeometry,
+    audio_geometry,
     build_bottom_ass,
+    normalize_ass_color,
     render_media_video,
 )
 
@@ -34,6 +42,19 @@ def test_discovery_pairs_same_stem_video_audio_and_txt(tmp_path: Path) -> None:
     assert jobs[0].video == (tmp_path / "song.mp4").resolve()
     assert jobs[0].audio == (tmp_path / "song.wav").resolve()
     assert jobs[0].mix_source == jobs[0].audio
+
+
+def test_explicit_lyrics_accepts_separate_txt_for_single_media(tmp_path: Path) -> None:
+    media = tmp_path / "mv.mp4"
+    lyrics = tmp_path / "not_same_name.txt"
+    _touch(media)
+    _touch(lyrics, "歌词")
+
+    job = discover_job_with_explicit_lyrics(media, lyrics)
+    assert job.stem == "mv"
+    assert job.video == media.resolve()
+    assert job.audio is None
+    assert job.lyrics == lyrics.resolve()
 
 
 def test_default_and_composite_plans_expand_required_individuals() -> None:
@@ -85,7 +106,33 @@ def test_bottom_ass_rows_are_inside_separate_subtitle_band() -> None:
     assert "Outline" in ass
 
 
-def test_video_render_adds_bottom_band_without_overlay(tmp_path: Path) -> None:
+def test_audio_geometry_keeps_both_subtitle_rows_in_lower_half() -> None:
+    geometry = audio_geometry(width=640, height=360)
+    ass = build_bottom_ass(_alignment(), label="hidden render label", font="DejaVu Sans", geometry=geometry)
+    positions = [int(value) for value in re.findall(r"\\pos\(320,(\d+)\)", ass)]
+    assert positions
+    assert min(positions) > geometry.canvas_height // 2
+    assert max(positions) < geometry.canvas_height
+    assert "hidden render label" not in ass
+    assert ",Meta," not in ass
+
+
+def test_bottom_ass_accepts_aegisub_style_colors() -> None:
+    geometry = VideoGeometry(width=1280, source_height=720, canvas_height=980, subtitle_band_height=260, fps=30.0)
+    style = SubtitleStyle(
+        karaoke_primary=normalize_ass_color("#22CCFF"),
+        karaoke_secondary=normalize_ass_color("#555555"),
+        preview=normalize_ass_color("#AAAAAA"),
+        outline=normalize_ass_color("#080808"),
+    )
+    ass = build_bottom_ass(_alignment(), label="demo", font="DejaVu Sans", geometry=geometry, style=style)
+    assert "&H00FFCC22" in ass
+    assert "&H00555555" in ass
+    assert "&H00AAAAAA" in ass
+    assert "&H00080808" in ass
+
+
+def test_video_render_overlays_subtitles_without_extending_canvas(tmp_path: Path) -> None:
     video = tmp_path / "source.mp4"
     audio = tmp_path / "audio.wav"
     subprocess.run(
@@ -131,7 +178,64 @@ def test_video_render_adds_bottom_band_without_overlay(tmp_path: Path) -> None:
     )
     stream = probe["streams"][0]
     assert stream["width"] == 320
-    assert stream["height"] == 400
+    assert stream["height"] == 180
+
+
+def test_audio_render_uses_background_image_when_provided(tmp_path: Path) -> None:
+    audio = tmp_path / "audio.wav"
+    background = tmp_path / "cover.png"
+    subprocess.run(
+        [
+            "ffmpeg", "-nostdin", "-y", "-v", "error",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+            "-ar", "44100", str(audio),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "ffmpeg", "-nostdin", "-y", "-v", "error",
+            "-f", "lavfi", "-i", "testsrc=size=160x90:rate=1:duration=1",
+            "-frames:v", "1", str(background),
+        ],
+        check=True,
+    )
+    alignment = tmp_path / "alignment.json"
+    alignment.write_text(json.dumps(_alignment(), ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "audio_rendered.mp4"
+    render_media_video(
+        alignment_path=alignment,
+        visual_source=None,
+        audio_track=audio,
+        output_path=output,
+        ass_path=tmp_path / "audio_subtitle.ass",
+        label="demo",
+        font="DejaVu Sans",
+        force=True,
+        audio_width=640,
+        audio_height=360,
+        background_image=background,
+    )
+    probe = json.loads(
+        subprocess.run(
+            [
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=width,height", "-of", "json", str(output),
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout
+    )
+    stream = probe["streams"][0]
+    assert stream["width"] == 640
+    assert stream["height"] == 360
+    ass = (tmp_path / "audio_subtitle.ass").read_text(encoding="utf-8")
+    positions = [int(value) for value in re.findall(r"\\pos\(320,(\d+)\)", ass)]
+    assert positions
+    assert min(positions) > 180
+    assert "demo" not in ass
+    assert ",Meta," not in ass
 
 
 def test_bottom_ass_uses_visible_word_text_not_model_only_tokens() -> None:
@@ -349,6 +453,16 @@ def test_render_skips_missing_alignment_without_secondary_exception(tmp_path: Pa
             "diagnostic": str(failure),
         }
     ]
+    failures = module._render_failures(job, rows)
+    assert failures == [
+        {
+            "stage": "render",
+            "job": "song",
+            "selection": spec.token,
+            "error": f"missing required alignment for render: {failure.with_name('alignment.json')}",
+            "diagnostic": str(failure),
+        }
+    ]
 
 
 def test_demucs_parser_defaults_are_reproducible(tmp_path: Path) -> None:
@@ -386,3 +500,76 @@ def test_explicit_demucs_command_is_shell_split(tmp_path: Path) -> None:
         demucs_env="unused",
     )
     assert module._demucs_command(args) == ["conda", "run", "-n", "demucs", "demucs"]
+
+
+def test_demucs_command_rejects_missing_configured_conda_env(monkeypatch) -> None:
+    import pytest
+    from types import SimpleNamespace
+
+    module = _load_batch_script_module()
+    monkeypatch.setattr(module.shutil, "which", lambda name: "conda" if name == "conda" else None)
+    monkeypatch.setattr(module.importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setattr(module, "_conda_env_exists", lambda name: False)
+    args = SimpleNamespace(demucs_command="", demucs_env="demucs")
+
+    with pytest.raises(RuntimeError, match="create the configured conda environment 'demucs'"):
+        module._demucs_command(args)
+
+
+def test_stage_directories_are_unique_and_not_fixed_dot_dirs(tmp_path: Path) -> None:
+    module = _load_batch_script_module()
+
+    first = module._new_stage_dir(tmp_path, "demucs_stage")
+    second = module._new_stage_dir(tmp_path, "demucs_stage")
+
+    assert first.is_dir()
+    assert second.is_dir()
+    assert first != second
+    assert first.name.startswith("demucs_stage_")
+    assert second.name.startswith("demucs_stage_")
+
+
+def test_prepare_rebuilds_mix_when_separator_loses_cached_mix(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+    from lyricalign.demo.batch import IndividualMode, MediaJob, OutputPlan
+
+    module = _load_batch_script_module()
+    source = tmp_path / "song.mp4"
+    lyrics = tmp_path / "song.txt"
+    source.write_bytes(b"media")
+    lyrics.write_text("甲乙\n", encoding="utf-8")
+    job = MediaJob("song", tmp_path, lyrics, source, None)
+    args = SimpleNamespace(
+        output_dir=tmp_path / "out",
+        media_duration_tolerance_sec=0.5,
+        allow_duration_mismatch=False,
+        force_prepare=False,
+        force_separation=False,
+    )
+    plan = OutputPlan((IndividualMode("r2", "vocal", "windowed"),), (), ())
+    write_calls: list[bool] = []
+
+    def fake_write_mix_audio(source_path: Path, output: Path, identity: Path, *, force: bool) -> None:
+        write_calls.append(force)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"mix")
+        identity.write_text("{}", encoding="utf-8")
+
+    def fake_prepare_vocals(*, mix: Path, mix_source: Path, work_audio: Path, args, force: bool):
+        mix.unlink()
+        module._ensure_mix_audio(mix_source, mix, work_audio / "mix.identity.json", force=False)
+        vocals = work_audio / "vocals.wav"
+        accompaniment = work_audio / "accompaniment.wav"
+        vocals.write_bytes(b"vocals")
+        accompaniment.write_bytes(b"accompaniment")
+        return vocals, accompaniment
+
+    monkeypatch.setattr(module, "_write_mix_audio", fake_write_mix_audio)
+    monkeypatch.setattr(module, "_prepare_vocals", fake_prepare_vocals)
+
+    paths = module._prepare_job(job, plan, args)
+
+    assert paths["mix"].is_file()
+    assert paths["vocal"].is_file()
+    assert paths["accompaniment"].is_file()
+    assert write_calls == [True, True]

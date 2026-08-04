@@ -13,7 +13,7 @@ from typing import Any, Sequence
 
 from .karaoke import ass_escape, ass_time
 
-RENDER_SCHEMA_VERSION = "qwen_fa_media_render_v2_multilingual_units"
+RENDER_SCHEMA_VERSION = "qwen_fa_media_render_v3_lower_band_no_meta"
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,31 @@ class VideoGeometry:
     canvas_height: int
     subtitle_band_height: int
     fps: float
+
+
+@dataclass(frozen=True)
+class SubtitleStyle:
+    karaoke_primary: str = "&H0000E8FF"
+    karaoke_secondary: str = "&H00909090"
+    preview: str = "&H00A0A0A0"
+    outline: str = "&H00101010"
+    meta: str = "&H00D0D0D0"
+    back: str = "&H00000000"
+
+
+def normalize_ass_color(value: str) -> str:
+    stripped = value.strip()
+    if re.fullmatch(r"&H[0-9A-Fa-f]{6}", stripped):
+        return "&H00" + stripped[2:].upper()
+    if re.fullmatch(r"&H[0-9A-Fa-f]{8}", stripped):
+        return "&H" + stripped[2:].upper()
+    match = re.fullmatch(r"#?([0-9A-Fa-f]{6})", stripped)
+    if match:
+        rgb = match.group(1).upper()
+        return f"&H00{rgb[4:6]}{rgb[2:4]}{rgb[0:2]}"
+    raise ValueError(
+        f"invalid ASS color {value!r}; use #RRGGBB, RRGGBB, &HBBGGRR, or &HAABBGGRR"
+    )
 
 
 def sha256(path: Path) -> str:
@@ -172,6 +197,97 @@ def _fontconfig_match(preferred: str) -> tuple[Path, int, str, str]:
     return matched_file.resolve(), face_index, family, style
 
 
+def _candidate_font_families(preferred: str) -> tuple[str, ...]:
+    normalized = preferred.casefold()
+    if "cjk sc" in normalized or "source han sans sc" in normalized:
+        return (
+            preferred,
+            "Noto Sans CJK SC",
+            "Source Han Sans SC",
+            "Microsoft YaHei UI",
+            "Microsoft YaHei",
+            "DengXian",
+            "SimHei",
+            "PingFang SC",
+            "Heiti SC",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        )
+    if "cjk jp" in normalized or "source han sans jp" in normalized:
+        return (
+            preferred,
+            "Noto Sans CJK JP",
+            "Source Han Sans JP",
+            "Yu Gothic UI",
+            "Yu Gothic",
+            "Meiryo",
+            "Hiragino Sans",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        )
+    return (
+        preferred,
+        "Noto Sans",
+        "Arial",
+        "Segoe UI",
+        "Helvetica",
+        "DejaVu Sans",
+    )
+
+
+def _matplotlib_find_family(family: str) -> str | None:
+    try:
+        from matplotlib import font_manager
+
+        prop = font_manager.FontProperties(family=family)
+        path = Path(font_manager.findfont(prop, fallback_to_default=False))
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return None
+    if not path.is_file():
+        return None
+    registered = _register_matplotlib_font(path)
+    return registered or family
+
+
+def _fallback_font_family(preferred: str, *, reason: Exception) -> str:
+    for family in _candidate_font_families(preferred):
+        resolved = _matplotlib_find_family(family)
+        if resolved:
+            print(
+                json.dumps(
+                    {
+                        "warning": "subtitle_font_fallback",
+                        "requested": preferred,
+                        "selected": family,
+                        "registered": resolved,
+                        "reason": f"{type(reason).__name__}: {reason}",
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return family
+    if os.name == "nt":
+        selected = "Microsoft YaHei"
+    else:
+        selected = "DejaVu Sans"
+    print(
+        json.dumps(
+            {
+                "warning": "subtitle_font_unverified_fallback",
+                "requested": preferred,
+                "selected": selected,
+                "reason": f"{type(reason).__name__}: {reason}",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+        flush=True,
+    )
+    return selected
+
+
 def detect_font(preferred: str) -> str:
     """Resolve and register the exact requested font face.
 
@@ -193,7 +309,10 @@ def detect_font(preferred: str) -> str:
             raise RuntimeError(f"Matplotlib could not register font file: {requested_path}")
         return registered
 
-    matched_file, face_index, family, _style = _fontconfig_match(preferred)
+    try:
+        matched_file, face_index, family, _style = _fontconfig_match(preferred)
+    except RuntimeError as exc:
+        return _fallback_font_family(preferred, reason=exc)
     if "cjk sc" in preferred.casefold() and family.casefold() != preferred.casefold():
         raise RuntimeError(
             f"fontconfig did not resolve the requested Simplified Chinese face: "
@@ -244,16 +363,16 @@ def probe_video(path: Path, *, subtitle_band_height: int | None = None) -> Video
     height = int(stream["height"])
     if width <= 0 or height <= 0:
         raise RuntimeError(f"invalid video geometry: {width}x{height}")
-    requested_band = subtitle_band_height or max(220, int(round(height * 0.28)))
-    band = max(220, int(requested_band))
+    requested_band = subtitle_band_height or max(160, int(round(height * 0.34)))
+    band = min(height, max(96, int(requested_band)))
     # H.264/yuv420p requires even dimensions.
     width += width % 2
     height += height % 2
     band += band % 2
     return VideoGeometry(
         width=width,
-        source_height=height,
-        canvas_height=height + band,
+        source_height=max(0, height - band),
+        canvas_height=height,
         subtitle_band_height=band,
         fps=max(1.0, _parse_rate(str(stream.get("avg_frame_rate", "30/1")))),
     )
@@ -262,11 +381,14 @@ def probe_video(path: Path, *, subtitle_band_height: int | None = None) -> Video
 def audio_geometry(*, width: int = 1280, height: int = 720) -> VideoGeometry:
     width += width % 2
     height += height % 2
+    band = max(160, int(round(height * 0.34)))
+    band = min(height, max(96, band))
+    band += band % 2
     return VideoGeometry(
         width=width,
-        source_height=0,
+        source_height=max(0, height - band),
         canvas_height=height,
-        subtitle_band_height=height,
+        subtitle_band_height=band,
         fps=30.0,
     )
 
@@ -277,21 +399,21 @@ def build_bottom_ass(
     label: str,
     font: str,
     geometry: VideoGeometry,
+    style: SubtitleStyle | None = None,
 ) -> str:
-    """Build two non-overlapping outlined karaoke rows in a bottom black band."""
+    """Build two non-overlapping outlined karaoke rows over the lower image area."""
 
+    style = style or SubtitleStyle()
     width = geometry.width
     height = geometry.canvas_height
-    band_top = geometry.source_height
-    band = geometry.subtitle_band_height
+    band = min(geometry.subtitle_band_height, height)
+    band_top = max(0, height - band)
     rows_y = [
         int(band_top + band * 0.38),
         int(band_top + band * 0.78),
     ]
     max_font = max(28, min(58, int(band * 0.20)))
     outline = max(2, int(round(max_font / 18)))
-    meta_size = max(18, int(max_font * 0.48))
-
     characters = alignment["characters"]
     line_specs = alignment["lines"]
     by_line: dict[int, list[dict[str, Any]]] = {}
@@ -299,10 +421,7 @@ def build_bottom_ass(
         by_line.setdefault(int(row["line_index"]), []).append(row)
     duration = float(alignment["summary"]["audio_duration_sec"])
 
-    events: list[str] = [
-        f"Dialogue: 0,{ass_time(0)},{ass_time(duration)},Meta,,0,0,0,,"
-        f"{{\\an7\\pos(24,{band_top + 18})}}{ass_escape(label)}"
-    ]
+    events: list[str] = []
 
     starts: list[float] = []
     ends: list[float] = []
@@ -380,12 +499,10 @@ def build_bottom_ass(
             "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,"
             "Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,"
             "Alignment,MarginL,MarginR,MarginV,Encoding",
-            f"Style: Preview,{font},{max_font},&H00A0A0A0,&H00A0A0A0,&H00101010,&H00000000,"
+            f"Style: Preview,{font},{max_font},{style.preview},{style.preview},{style.outline},{style.back},"
             f"0,0,0,0,100,100,2,0,1,{outline},0,2,40,40,20,1",
-            f"Style: Karaoke,{font},{max_font},&H0000E8FF,&H00909090,&H00101010,&H00000000,"
+            f"Style: Karaoke,{font},{max_font},{style.karaoke_primary},{style.karaoke_secondary},{style.outline},{style.back},"
             f"1,0,0,0,100,100,2,0,1,{outline},0,2,40,40,20,1",
-            f"Style: Meta,{font},{meta_size},&H00D0D0D0,&H00D0D0D0,&H00101010,&H00000000,"
-            "0,0,0,0,100,100,1,0,1,2,0,7,20,20,20,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -423,7 +540,9 @@ def render_media_video(
     subtitle_band_height: int | None = None,
     audio_width: int = 1280,
     audio_height: int = 720,
+    background_image: Path | None = None,
     profile: str = "final",
+    subtitle_style: SubtitleStyle | None = None,
 ) -> dict[str, Any]:
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise RuntimeError("ffmpeg and ffprobe are required")
@@ -446,11 +565,14 @@ def render_media_video(
         "visual_source_sha256": sha256(visual_source) if visual_source else None,
         "audio_track": str(audio_track.resolve()),
         "audio_track_sha256": sha256(audio_track),
+        "background_image": str(background_image.resolve()) if background_image else None,
+        "background_image_sha256": sha256(background_image) if background_image else None,
         "label": label,
         "font": font,
         "geometry": geometry.__dict__,
         "profile": profile,
         "encoding": settings,
+        "subtitle_style": (subtitle_style or SubtitleStyle()).__dict__,
     }
     request_hash = canonical_hash(request)
     identity_path = output_path.with_suffix(output_path.suffix + ".identity.json")
@@ -459,7 +581,13 @@ def render_media_video(
 
     ass_path.parent.mkdir(parents=True, exist_ok=True)
     ass_path.write_text(
-        build_bottom_ass(alignment, label=label, font=font, geometry=geometry),
+        build_bottom_ass(
+            alignment,
+            label=label,
+            font=font,
+            geometry=geometry,
+            style=subtitle_style,
+        ),
         encoding="utf-8",
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -467,19 +595,32 @@ def render_media_video(
     duration = float(alignment["summary"]["audio_duration_sec"])
 
     if visual_source is None:
-        command = [
-            "ffmpeg", "-nostdin", "-y", "-v", "warning",
-            "-f", "lavfi", "-i",
-            f"color=c=black:s={geometry.width}x{geometry.canvas_height}:r={settings['fps']}:d={duration:.6f}",
-            "-i", str(audio_track),
-            "-vf", f"ass={ass_path.name}",
-            "-map", "0:v:0", "-map", "1:a:0",
-        ]
+        if background_image is None:
+            command = [
+                "ffmpeg", "-nostdin", "-y", "-v", "warning",
+                "-f", "lavfi", "-i",
+                f"color=c=0x14191f:s={geometry.width}x{geometry.canvas_height}:r={settings['fps']}:d={duration:.6f}",
+                "-i", str(audio_track),
+                "-vf", f"ass={ass_path.name}",
+                "-map", "0:v:0", "-map", "1:a:0",
+            ]
+        else:
+            filter_graph = (
+                f"[0:v]scale={geometry.width}:{geometry.canvas_height}:force_original_aspect_ratio=increase,"
+                f"crop={geometry.width}:{geometry.canvas_height},setsar=1,ass={ass_path.name}[v]"
+            )
+            command = [
+                "ffmpeg", "-nostdin", "-y", "-v", "warning",
+                "-loop", "1", "-framerate", str(settings["fps"]), "-i", str(background_image),
+                "-i", str(audio_track),
+                "-filter_complex", filter_graph,
+                "-map", "[v]", "-map", "1:a:0",
+            ]
     else:
         filter_graph = (
-            f"[0:v]scale={geometry.width}:{geometry.source_height}:force_original_aspect_ratio=decrease,"
-            f"pad={geometry.width}:{geometry.source_height}:(ow-iw)/2:(oh-ih)/2:black,"
-            f"pad={geometry.width}:{geometry.canvas_height}:0:0:black,ass={ass_path.name}[v]"
+            f"[0:v]scale={geometry.width}:{geometry.canvas_height}:force_original_aspect_ratio=decrease,"
+            f"pad={geometry.width}:{geometry.canvas_height}:(ow-iw)/2:(oh-ih)/2:black,"
+            f"setsar=1,ass={ass_path.name}[v]"
         )
         command = [
             "ffmpeg", "-nostdin", "-y", "-v", "warning",
@@ -577,6 +718,7 @@ def render_alignment_comparison(
     layout: str,
     profile: str = "review",
     force: bool = False,
+    subtitle_style: SubtitleStyle | None = None,
 ) -> dict[str, Any]:
     """Render 2 or 4 alignments directly in one ffmpeg encoding pass.
 
@@ -642,6 +784,7 @@ def render_alignment_comparison(
         "font": font,
         "geometry": geometry.__dict__,
         "settings": settings,
+        "subtitle_style": (subtitle_style or SubtitleStyle()).__dict__,
     }
     request_hash = canonical_hash(request)
     identity_path = output_path.with_suffix(output_path.suffix + ".identity.json")
@@ -656,7 +799,13 @@ def render_alignment_comparison(
     for index, (payload, label) in enumerate(zip(alignments, labels)):
         ass_path = ass_root / f"panel_{index}.ass"
         ass_path.write_text(
-            build_bottom_ass(payload, label=label, font=font, geometry=geometry),
+            build_bottom_ass(
+                payload,
+                label=label,
+                font=font,
+                geometry=geometry,
+                style=subtitle_style,
+            ),
             encoding="utf-8",
         )
         ass_names.append(ass_path.name)

@@ -10,6 +10,12 @@ Raw + guarded Demucs karaoke demo:
 docs/manual/raw_guarded_karaoke_demo.md
 ```
 
+GUI karaoke rendering tool:
+
+```text
+docs/manual/gui_karaoke_tool.md
+```
+
 The corresponding detector/repair experiments E0-E5 are launched with:
 
 ```bash

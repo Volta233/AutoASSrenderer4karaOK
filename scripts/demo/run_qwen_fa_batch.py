@@ -35,12 +35,15 @@ from lyricalign.demo.batch import (  # noqa: E402
     MediaJob,
     OutputPlan,
     build_output_plan,
+    discover_job_with_explicit_lyrics,
     discover_jobs,
 )
 from lyricalign.demo.media_render import (  # noqa: E402
+    SubtitleStyle,
     atomic_json,
     canonical_hash,
     detect_font,
+    normalize_ass_color,
     render_composite,
     render_media_video,
     sha256,
@@ -148,6 +151,13 @@ def _write_mix_audio(source: Path, output: Path, identity: Path, *, force: bool)
     atomic_json(identity, {**request, "request_hash": request_hash, "output_sha256": sha256(output)})
 
 
+def _ensure_mix_audio(source: Path, output: Path, identity: Path, *, force: bool) -> None:
+    if force or not output.is_file() or not identity.is_file():
+        _write_mix_audio(source, output, identity, force=True)
+        return
+    _write_mix_audio(source, output, identity, force=False)
+
+
 def _spleeter_command(args: argparse.Namespace) -> list[str]:
     if args.spleeter_command:
         return args.spleeter_command.split()
@@ -164,6 +174,7 @@ def _spleeter_command(args: argparse.Namespace) -> list[str]:
 def _prepare_spleeter_vocals(
     *,
     mix: Path,
+    mix_source: Path,
     work_audio: Path,
     args: argparse.Namespace,
     force: bool,
@@ -198,9 +209,7 @@ def _prepare_spleeter_vocals(
         except (OSError, json.JSONDecodeError):
             pass
 
-    stage = work_audio / ".spleeter_stage"
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True, exist_ok=True)
+    stage = _new_stage_dir(work_audio, "spleeter_stage")
     command = _spleeter_command(args) + [
         "separate", "-p", f"spleeter:{args.spleeter_model_name}", "-o", str(stage), str(mix),
     ]
@@ -215,6 +224,9 @@ def _prepare_spleeter_vocals(
         raise FileNotFoundError(f"incomplete Spleeter output under {generated}")
     shutil.copy2(generated_vocals, vocals)
     shutil.copy2(generated_accompaniment, accompaniment)
+    if not mix.is_file():
+        _log({"warning": "mix_audio_missing_after_spleeter", "mix": str(mix), "action": "rebuild_mix_audio"})
+        _write_mix_audio(mix_source, mix, work_audio / "mix.identity.json", force=True)
 
     check_command = [
         sys.executable, str(ROOT / "scripts" / "demo" / "check_audio_separation.py"),
@@ -233,7 +245,6 @@ def _prepare_spleeter_vocals(
             "quality_report_sha256": sha256(quality),
         },
     )
-    shutil.rmtree(stage, ignore_errors=True)
     return vocals, accompaniment
 
 
@@ -251,18 +262,55 @@ def _demucs_command(args: argparse.Namespace) -> list[str]:
         return [executable]
     if importlib.util.find_spec("demucs") is not None:
         return [sys.executable, "-m", "demucs"]
-    if shutil.which("conda"):
+    if shutil.which("conda") and _conda_env_exists(args.demucs_env):
         return ["conda", "run", "-n", args.demucs_env, "python", "-m", "demucs"]
     raise RuntimeError(
         "Demucs is required for --separator demucs. Install demucs==4.1.0 in the "
-        "active environment, activate the configured conda environment, or provide "
-        "--demucs-command explicitly. Spleeter is not used as an automatic fallback."
+        "active environment, create the configured conda environment "
+        f"{args.demucs_env!r}, or provide --demucs-command explicitly. "
+        "Spleeter is not used as an automatic fallback."
     )
+
+
+def _conda_env_exists(name: str) -> bool:
+    if not name.strip() or not shutil.which("conda"):
+        return False
+    try:
+        result = subprocess.run(
+            ["conda", "env", "list", "--json"],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        payload = json.loads(result.stdout)
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+        return False
+    expected = name.casefold()
+    for env in payload.get("envs", []):
+        path = Path(str(env))
+        if path.name.casefold() == expected or str(path).casefold() == expected:
+            return True
+    return False
+
+
+def _new_stage_dir(work_audio: Path, prefix: str) -> Path:
+    work_audio.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    for attempt in range(100):
+        suffix = f"{stamp}_{os.getpid()}_{attempt}"
+        stage = work_audio / f"{prefix}_{suffix}"
+        try:
+            stage.mkdir()
+            return stage
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"could not create a unique temporary {prefix} directory under {work_audio}")
 
 
 def _prepare_demucs_vocals(
     *,
     mix: Path,
+    mix_source: Path,
     work_audio: Path,
     args: argparse.Namespace,
     force: bool,
@@ -297,11 +345,33 @@ def _prepare_demucs_vocals(
                 return vocals, accompaniment
         except (OSError, json.JSONDecodeError):
             pass
+    if not force and vocals.is_file() and accompaniment.is_file():
+        if not mix.is_file():
+            _log({"warning": "mix_audio_missing_before_demucs_quality_resume", "mix": str(mix), "action": "rebuild_mix_audio"})
+            _write_mix_audio(mix_source, mix, work_audio / "mix.identity.json", force=True)
+        check_command = [
+            sys.executable, str(ROOT / "scripts" / "demo" / "check_audio_separation.py"),
+            "--mix", str(mix), "--vocals", str(vocals),
+            "--accompaniment", str(accompaniment), "--report", str(quality),
+        ]
+        _log({"separation_quality_check": check_command, "resume_existing_stems": True})
+        subprocess.run(check_command, check=True)
+        atomic_json(
+            identity,
+            {
+                **request,
+                "request_hash": request_hash,
+                "command": ["resume_existing_demucs_stems_after_quality_failure"],
+                "vocals_sha256": sha256(vocals),
+                "accompaniment_sha256": sha256(accompaniment),
+                "quality_report_sha256": sha256(quality),
+            },
+        )
+        return vocals, accompaniment
 
-    stage = work_audio / ".demucs_stage"
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True, exist_ok=True)
-    command = _demucs_command(args) + [
+    command = _demucs_command(args)
+    stage = _new_stage_dir(work_audio, "demucs_stage")
+    command = command + [
         "-n", args.demucs_model,
         "--two-stems", "vocals",
         "--other-method", "add",
@@ -328,6 +398,9 @@ def _prepare_demucs_vocals(
         raise FileNotFoundError(f"incomplete Demucs output under {generated}")
     shutil.copy2(generated_vocals, vocals)
     shutil.copy2(generated_accompaniment, accompaniment)
+    if not mix.is_file():
+        _log({"warning": "mix_audio_missing_after_demucs", "mix": str(mix), "action": "rebuild_mix_audio"})
+        _write_mix_audio(mix_source, mix, work_audio / "mix.identity.json", force=True)
 
     check_command = [
         sys.executable, str(ROOT / "scripts" / "demo" / "check_audio_separation.py"),
@@ -347,21 +420,33 @@ def _prepare_demucs_vocals(
             "quality_report_sha256": sha256(quality),
         },
     )
-    shutil.rmtree(stage, ignore_errors=True)
     return vocals, accompaniment
 
 
 def _prepare_vocals(
     *,
     mix: Path,
+    mix_source: Path,
     work_audio: Path,
     args: argparse.Namespace,
     force: bool,
 ) -> tuple[Path, Path]:
     if args.separator == "spleeter":
-        return _prepare_spleeter_vocals(mix=mix, work_audio=work_audio, args=args, force=force)
+        return _prepare_spleeter_vocals(
+            mix=mix,
+            mix_source=mix_source,
+            work_audio=work_audio,
+            args=args,
+            force=force,
+        )
     if args.separator == "demucs":
-        return _prepare_demucs_vocals(mix=mix, work_audio=work_audio, args=args, force=force)
+        return _prepare_demucs_vocals(
+            mix=mix,
+            mix_source=mix_source,
+            work_audio=work_audio,
+            args=args,
+            force=force,
+        )
     raise ValueError(f"unsupported separator: {args.separator}")
 
 
@@ -393,7 +478,7 @@ def _prepare_job(job: MediaJob, plan: OutputPlan, args: argparse.Namespace) -> d
     out_root = _job_output_root(job, args)
     work_audio = out_root / "work" / "audio"
     mix = work_audio / "mix.wav"
-    _write_mix_audio(
+    _ensure_mix_audio(
         job.mix_source,
         mix,
         work_audio / "mix.identity.json",
@@ -403,6 +488,7 @@ def _prepare_job(job: MediaJob, plan: OutputPlan, args: argparse.Namespace) -> d
     if "vocal" in plan.required_audio_inputs:
         vocals, accompaniment = _prepare_vocals(
             mix=mix,
+            mix_source=job.mix_source,
             work_audio=work_audio,
             args=args,
             force=args.force_prepare or args.force_separation,
@@ -811,6 +897,8 @@ def _render_job(
             subtitle_band_height=args.subtitle_band_height,
             audio_width=args.audio_width,
             audio_height=args.audio_height,
+            background_image=args.background_image,
+            subtitle_style=args.subtitle_style,
         )
         individual_results[spec] = result
         rows.append({"kind": "individual", "selection": spec.token, **result})
@@ -869,6 +957,25 @@ def _render_job(
     return rows
 
 
+def _render_failures(job: MediaJob, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    for row in rows:
+        if row.get("status") != "skipped":
+            continue
+        reason = row.get("reason")
+        if reason == "alignment_failed_or_missing":
+            failures.append(
+                {
+                    "stage": "render",
+                    "job": job.stem,
+                    "selection": row.get("selection"),
+                    "error": f"missing required alignment for render: {row.get('alignment')}",
+                    "diagnostic": row.get("diagnostic"),
+                }
+            )
+    return failures
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -877,6 +984,7 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("input", type=Path, help="media file, TXT file, basename, or directory")
+    parser.add_argument("--lyrics", type=Path, help="explicit lyrics TXT for a single media input")
     parser.add_argument("--name", help="only process this exact stem when input is a directory")
     parser.add_argument("--recursive", action="store_true", help="scan directory recursively")
     parser.add_argument("--output-dir", type=Path, help="output root; default is <source>/<stem>_qwen_fa")
@@ -890,6 +998,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--render-audio", choices=("source", "aligned"), default="source", help="source keeps normal program audio; aligned uses mix/vocal diagnostic audio")
     parser.add_argument("--font", help="subtitle font; default is selected from --language")
     parser.add_argument("--subtitle-band-height", type=int)
+    parser.add_argument("--background-image", type=Path, help="image background for audio-only outputs")
+    parser.add_argument("--karaoke-primary-color", default="#FFE800", help="sung highlight color; #RRGGBB or ASS &HAABBGGRR")
+    parser.add_argument("--karaoke-secondary-color", default="#909090", help="unsung karaoke color")
+    parser.add_argument("--subtitle-preview-color", default="#A0A0A0", help="preview line color")
+    parser.add_argument("--subtitle-outline-color", default="#101010", help="subtitle outline color")
     parser.add_argument("--audio-width", type=int, default=1280)
     parser.add_argument("--audio-height", type=int, default=720)
     parser.add_argument("--dry-run", action="store_true")
@@ -972,6 +1085,12 @@ def main() -> int:
         args.force_separation = True
         args.force_align = True
         args.force_render = True
+    args.subtitle_style = SubtitleStyle(
+        karaoke_primary=normalize_ass_color(args.karaoke_primary_color),
+        karaoke_secondary=normalize_ass_color(args.karaoke_secondary_color),
+        preview=normalize_ass_color(args.subtitle_preview_color),
+        outline=normalize_ass_color(args.subtitle_outline_color),
+    )
 
     plan = build_output_plan(
         presets=args.preset,
@@ -979,7 +1098,12 @@ def main() -> int:
         compare_models=args.compare_models,
         compare_inputs=args.compare_inputs,
     )
-    jobs = discover_jobs(args.input, name=args.name, recursive=args.recursive)
+    if args.lyrics is not None:
+        if args.name is not None or args.recursive:
+            raise RuntimeError("--lyrics is only supported for a single media input; do not combine it with --name/--recursive")
+        jobs = [discover_job_with_explicit_lyrics(args.input, args.lyrics)]
+    else:
+        jobs = discover_jobs(args.input, name=args.name, recursive=args.recursive)
     stems = [job.stem for job in jobs]
     if len(stems) != len(set(stems)) and args.output_dir is not None:
         raise RuntimeError("duplicate stems under a shared --output-dir; use non-recursive input or unique names")
@@ -1080,6 +1204,9 @@ def main() -> int:
                     args=args,
                     font=font,
                 )
+                for row in _render_failures(job, render_rows[job.stem]):
+                    failures.append(row)
+                    _log({"failure": row})
             except Exception as exc:  # noqa: BLE001
                 row = {"stage": "render", "job": job.stem, "error": f"{type(exc).__name__}: {exc}"}
                 failures.append(row)

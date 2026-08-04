@@ -257,6 +257,13 @@ Chinese / Cantonese -> Noto Sans CJK SC
 --font 'Source Han Sans JP'
 ```
 
+Windows 本机没有 `Noto Sans CJK SC` 时，不再因为缺少该字体直接中断。渲染会
+尝试常见 CJK 字体并输出 `subtitle_font_fallback` 日志。中文 Windows 可直接用：
+
+```bash
+--font "Microsoft YaHei"
+```
+
 ## 5. 输出位置
 
 默认在源文件同一目录建立：
@@ -289,19 +296,27 @@ scripts/demo/run_qwen_fa_batch.sh /path/to/folder \
 
 ### 视频输入
 
-输出画布会向下扩展黑色字幕带：
+输出不再向下扩展黑色字幕带。字幕会覆盖在原视频下半部分区域：
 
 ```text
 原视频画面
-──────────
-黑色字幕带：两行描边 KTV 字幕
+  下半部分覆盖两行描边 KTV 字幕
 ```
 
-字幕不覆盖原视频内容。字幕带默认高度为原视频高度的约 28%，最低 220
-像素。显式值低于 220 像素时仍按 220 处理，以避免两行字幕和标签重叠；可指定更大的值：
+输出视频保持原始画布尺寸。字幕区域默认约为画面高度的三分之一；可指定：
 
 ```bash
 --subtitle-band-height 260
+```
+
+字幕样式按 ASS/Aegisub 的颜色模型写入 `[V4+ Styles]`。CLI 接受 `#RRGGBB`、
+`RRGGBB`、`&HBBGGRR` 或 `&HAABBGGRR`：
+
+```bash
+--karaoke-primary-color "#FFE800" \
+--karaoke-secondary-color "#909090" \
+--subtitle-preview-color "#A0A0A0" \
+--subtitle-outline-color "#101010"
 ```
 
 ### 音频输入
@@ -311,6 +326,14 @@ scripts/demo/run_qwen_fa_batch.sh /path/to/folder \
 ```bash
 --audio-width 1280 --audio-height 720
 ```
+
+也可为音频输入指定背景图；图片会等比铺满画布并裁切：
+
+```bash
+--background-image /path/to/cover.png
+```
+
+未指定背景图时使用内置深色背景，不再是纯黑屏。
 
 ### 输出音轨
 

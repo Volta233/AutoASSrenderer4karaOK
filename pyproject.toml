@@ -13,6 +13,7 @@ dependencies = [
 [project.optional-dependencies]
 qwen-smoke = [
   "huggingface_hub>=1.24,<2",
+  "peft>=0.20,<1",
   "soundfile>=0.14,<1",
 ]
 demo-multilingual = [

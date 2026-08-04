@@ -147,6 +147,29 @@ def discover_jobs(
     return jobs
 
 
+def discover_job_with_explicit_lyrics(media_path: Path, lyrics_path: Path) -> MediaJob:
+    """Create one job from a media file plus a separately selected lyrics TXT."""
+
+    media = media_path.expanduser().resolve()
+    lyrics = lyrics_path.expanduser().resolve()
+    if not media.is_file():
+        raise FileNotFoundError(f"media input is not a file: {media}")
+    if not lyrics.is_file():
+        raise FileNotFoundError(f"lyrics input is not a file: {lyrics}")
+    if lyrics.suffix.lower() not in LYRICS_EXTENSIONS:
+        raise ValueError(f"lyrics file must be a TXT file: {lyrics}")
+
+    suffix = media.suffix.lower()
+    if suffix in VIDEO_EXTENSIONS:
+        return MediaJob(stem=media.stem, parent=media.parent, lyrics=lyrics, video=media, audio=None)
+    if suffix in AUDIO_EXTENSIONS:
+        return MediaJob(stem=media.stem, parent=media.parent, lyrics=lyrics, video=None, audio=media)
+    raise ValueError(
+        f"unsupported media extension {media.suffix!r}; "
+        f"choose video {VIDEO_EXTENSIONS} or audio {AUDIO_EXTENSIONS}"
+    )
+
+
 def parse_individual_mode(value: str) -> IndividualMode:
     parts = tuple(part.strip().lower() for part in value.split(":"))
     if len(parts) != 3:

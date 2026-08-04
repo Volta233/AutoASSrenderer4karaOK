@@ -55,3 +55,4 @@ bash scripts/demo/run_inline_realign_render_only.sh formal <OUT_ROOT>
 
 ## Notes
 - （后续在此追加临时事实。）
+

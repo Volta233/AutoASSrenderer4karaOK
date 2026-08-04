@@ -148,3 +148,17 @@ def test_detect_font_rejects_jp_substitution(tmp_path: Path, monkeypatch: pytest
     )
     with pytest.raises(RuntimeError, match="did not resolve.*Simplified Chinese"):
         media_render.detect_font("Noto Sans CJK SC")
+
+
+def test_detect_font_falls_back_when_fontconfig_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        media_render,
+        "_fontconfig_match",
+        lambda preferred: (_ for _ in ()).throw(RuntimeError("fc-match is required")),
+    )
+    monkeypatch.setattr(
+        media_render,
+        "_matplotlib_find_family",
+        lambda family: family if family == "Microsoft YaHei" else None,
+    )
+    assert media_render.detect_font("Noto Sans CJK SC") == "Microsoft YaHei"
