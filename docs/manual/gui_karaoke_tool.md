@@ -1,175 +1,146 @@
 # GUI Karaoke Rendering Tool
 
-This GUI is a thin, user-friendly wrapper around:
+本手册说明如何用图形界面把一首歌生成带 KTV 高亮字幕的 MP4。GUI 是 `scripts/demo/run_qwen_fa_batch.py` 的封装，适合日常使用；需要批量或精细调参时再使用 CLI。
 
-```text
-scripts/demo/run_qwen_fa_batch.py
+## 1. 启动 GUI
+
+推荐从 Git Bash 启动：
+
+```bash
+cd /d/小玩具/纯K工具v004/LyricAlignment
+bash scripts/gui/run_gui.sh
 ```
 
-It lets a user pick an audio/MV file, provide lyrics, choose model/separator
-settings, and generate the final MP4 with burned karaoke subtitles.
-
-## 1. Open the GUI
-
-From the project root:
+也可以从 PowerShell 启动：
 
 ```powershell
 cd D:\小玩具\纯K工具v004\LyricAlignment
 $env:PYTHONPATH = "src"
-python scripts\gui\run_gui.py
+D:\Anconda\envs\qwen312\python.exe scripts\gui\run_gui.py
 ```
 
-Or use the bundled bash launcher from Git Bash or a configured WSL shell:
+`scripts/gui/run_gui.sh` 默认使用：
+
+```text
+GUI_PYTHON=D:/Anconda/envs/qwen312/python.exe
+LYRICALIGN_PIPELINE_PYTHON=D:/Anconda/envs/qwen312/python.exe
+```
+
+需要换环境时：
 
 ```bash
+GUI_PYTHON="D:/path/to/python.exe" \
+LYRICALIGN_PIPELINE_PYTHON="D:/path/to/python.exe" \
 bash scripts/gui/run_gui.sh
 ```
 
-On this Windows machine, `C:\Windows\system32\bash.exe` may point to WSL. If WSL
-has no installed default distribution, use Git Bash or run the Python command
-above directly.
+GUI 可以由任何带 Tkinter 的 Python 打开，但实际生成任务使用 **Python 解释器** 输入框里的 Python。这个环境需要能加载 Qwen Forced Aligner、Demucs、FFmpeg 相关依赖。
 
-The launcher sets `PYTHONPATH=src`, opens the GUI with
-`D:/Anconda/envs/qwen312/python.exe`, and passes the same Python to the pipeline
-subprocess through `LYRICALIGN_PIPELINE_PYTHON`. Override either path when
-needed:
+## 2. 最短可用流程
 
-```bash
-GUI_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
-LYRICALIGN_PIPELINE_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
-bash scripts/gui/run_gui.sh
-```
+1. 在 **音频 / MV** 中选择 `.mp4`、`.wav`、`.mp3` 等媒体。
+2. 在 **歌词 TXT** 中选择歌词文件；也可以直接把歌词粘贴到文本框。
+3. 选择 **输出目录**。
+4. 保持默认：
+   - 语言：`Chinese`
+   - 阶段：`all`
+   - 预设：`default`
+   - 分离器：`demucs`
+   - 成品音轨：`source`
+5. 点击 **预览 dry-run**，确认日志中的输入、输出和命令。
+6. 点击 **开始生成成品**。
 
-The full pipeline requires `ffmpeg`, `ffprobe`, Qwen Forced Aligner
-weights/checkpoints, and either Demucs or Spleeter for separated-vocal mode.
-The GUI can be opened from any Python that has Tkinter, but the pipeline
-subprocess defaults to:
+最终视频通常在：
 
 ```text
-D:\Anconda\envs\qwen312\python.exe
+<输出目录>/<歌曲名>/videos/individual/r2_vocal_windowed.mp4
 ```
 
-Change **Python 解释器** if your working Qwen/Demucs environment is elsewhere.
-The selected pipeline Python must use a Transformers source build that
-recognizes Qwen Forced Aligner's `qwen3_asr` model type.
-
-## 2. Basic Workflow
-
-1. Select **音频 / MV**.
-   Supported media is the same as the batch CLI: common video files such as
-   `.mp4`, `.mkv`, `.mov`, and common audio files such as `.wav`, `.flac`,
-   `.mp3`, `.m4a`.
-2. Provide lyrics.
-   Choose a TXT file, or paste lyrics into the text box. A selected TXT file
-   takes priority over pasted text.
-3. Select an output directory.
-   If empty, the CLI default is used: `<source folder>/<media stem>_qwen_fa`.
-4. Keep the default preset for normal use.
-   `default` generates `R2 + separated vocal + windowed alignment`, then renders
-   one final karaoke MP4.
-5. Click **预检 dry-run** first.
-   This checks discovery and command construction without loading models or
-   writing the final output.
-6. Click **开始生成成品**.
-   Progress and JSON logs stream into the log panel. The final video is under
-   the output directory's `videos/individual/` folder.
-
-## 3. Main Options
-
-- **语言**: Choose the singing language. Chinese is the default. Japanese
-  requires `nagisa`.
-- **阶段**: `all` runs prepare, align, and render. `prepare`, `align`, and
-  `render` are useful for resuming one stage.
-- **预设**: `default` is the practical one-video output. Comparison presets
-  generate extra diagnostic videos and take longer.
-- **成品音轨**: `source` keeps the original song/MV audio in the final video.
-  `aligned` uses the alignment input, useful for diagnostics.
-- **字幕字体**: Optional. Leave empty for automatic language-based selection.
-  On Windows Chinese machines without `Noto Sans CJK SC`, use
-  `Microsoft YaHei` or `Microsoft YaHei UI`.
-- **字幕带高度**: Optional pixel height for the subtitle overlay area. Empty uses
-  the automatic height. For video inputs this area is in the lower part of the
-  original frame; it does not extend the canvas.
-- **字幕颜色**: Click the color buttons to open the system color picker for
-  highlight, unsung text, preview text, and outline.
-- **音频背景图**: Optional image used as the video background when the input is
-  audio-only. If empty, the renderer uses a dark default background instead of
-  pure black.
-- **分离器**: `demucs` is the default. `spleeter` remains available if its
-  weights are already installed.
-- **Python 解释器**: The Python used for the actual batch subprocess. It must
-  have Qwen runtime dependencies and Demucs/Spleeter installed.
-- **对齐设备 / Demucs 设备**: Defaults to `cpu` for local Windows compatibility.
-  Select `cuda` only when `torch.cuda.is_available()` is true in the selected
-  Python environment.
-- **只用本地模型**: Adds `--local-files-only`, useful after Qwen and Demucs
-  weights have already been cached.
-- **重做准备 / 人声分离 / 对齐 / 渲染**: Force-refresh specific cached stages.
-
-## 4. Demucs Weights
-
-The project default is:
+如果失败，先看 GUI 日志末尾的 JSON；再检查：
 
 ```text
-demucs==4.1.0
-model: htdemucs_ft
-mode: --two-stems vocals
+batch_manifest.json
+alignment.failure.json
+alignment.progress.json
 ```
 
-Official channels:
+## 3. 输入与歌词
 
-- Demucs upstream repository: `https://github.com/facebookresearch/demucs`
-- HTDemucs fine-tuned weights page: `https://huggingface.co/adefossez/HTDemucs-ft`
-
-Recommended usage is not to manually copy weights into this repository. Set a
-cache directory in **Demucs 缓存**; the GUI passes it as `TORCH_HOME`, and Demucs
-downloads/uses its model cache there on first execution. Keep this cache outside
-Git, for example:
+支持常见视频：
 
 ```text
-D:\ASRModels\torch
+.mp4 .mkv .mov .webm .avi .m4v
 ```
 
-If Demucs is installed in a separate conda environment, set **Demucs 命令** to:
+支持常见音频：
 
 ```text
-conda run -n demucs demucs
+.wav .flac .mp3 .m4a .aac .ogg .opus .wma
 ```
 
-## 5. Qwen Model and Checkpoints
+歌词 TXT 优先级高于粘贴文本。只粘贴歌词时，GUI 会临时生成一个 TXT 文件传给批处理脚本。
 
-The CLI still controls Qwen Forced Aligner loading. If the server paths in the
-script are not valid on this machine, fill in:
+## 4. 字幕和画面
 
-- **Qwen 模型路径**: local `Qwen3-ForcedAligner-0.6B-hf` snapshot.
-- **R1 checkpoint** / **R2 checkpoint**: validation-selected checkpoint
-  directories.
-- **HF 缓存目录**: optional Hugging Face cache directory.
+当前渲染目标是“字幕嵌入原画面”，不是把字幕和视频画布分离。
 
-The GUI defaults are:
+视频/MV 输入：
+
+- 输出保持原始画布尺寸。
+- 字幕覆盖在原视频下半区。
+- 不再新增底部黑色字幕带。
+
+音频输入：
+
+- 默认输出 1280x720 深色背景视频。
+- 如果选择 **音频背景图**，图片会等比铺满画布并裁切。
+- 高亮行和未唱行都在画面下半区，不会一行上半屏、一行下半屏。
+
+**字幕带高度** 可以留空。留空时使用自动高度，约为画面高度的三分之一。只有需要手动微调字幕占用范围时才填写像素值。
+
+## 5. 颜色与字体
+
+GUI 中的 **字幕颜色** 是调色盘按钮：
+
+- 高亮：当前唱到的文字。
+- 未唱：当前行中尚未唱到的文字。
+- 预览：即将唱到的下一行。
+- 描边：字幕描边颜色。
+
+默认颜色：
 
 ```text
-Qwen 模型路径:
+高亮: #FFE800
+未唱: #909090
+预览: #A0A0A0
+描边: #101010
+```
+
+字体可以留空，程序会按语言自动选择。Windows 本机没有 `Noto Sans CJK SC` 时，可以在 **字幕字体** 中填写：
+
+```text
+Microsoft YaHei
+```
+
+渲染器会尝试常见 CJK 字体回退，不会仅因缺少 `Noto Sans CJK SC` 直接中断。
+
+成品字幕中不会再烧录左上角的语言、模型、分离器说明文字。
+
+## 6. 模型路径
+
+GUI 默认 Qwen 模型路径：
+
+```text
 models/hf/Qwen3-ForcedAligner-0.6B-hf
+```
 
-R2 checkpoint:
+GUI 默认 R2 checkpoint 路径：
+
+```text
 models/R2checkpoint
 ```
 
-Download or resume the official Qwen Forced Aligner base model with:
-
-```powershell
-python scripts\assets\download_qwen_model.py `
-  --model-id Qwen/Qwen3-ForcedAligner-0.6B-hf `
-  --revision c07281df297b9905d24a508279258cccf987a064 `
-  --cache-dir models\hf_cache `
-  --local-dir models\hf\Qwen3-ForcedAligner-0.6B-hf `
-  --manifest models\manifests\qwen3_forced_aligner_0_6b_hf.json
-```
-
-This uses Hugging Face Hub snapshot caching. If interrupted, rerun the same
-command to resume. The R2 LoRA/projector checkpoint is not part of the official
-base model. This local GUI package expects it under:
+R2 checkpoint 目录需要包含：
 
 ```text
 models/R2checkpoint/
@@ -179,127 +150,58 @@ models/R2checkpoint/
   trainer_state.pt
 ```
 
-`projector.pt` must be directly inside `models/R2checkpoint`, not under
-`models/checkpoints/...`. Choose a different R2 checkpoint directory in the GUI
-only if it has the same structure.
+`projector.pt` 必须直接位于 `models/R2checkpoint` 下。只有在你确认另一个目录结构一致时，才在 GUI 中改 R2 checkpoint。
 
-## 5.1 Qwen Runtime Compatibility
+## 7. Demucs 设置
 
-If the log contains:
+默认设置：
 
 ```text
-ValueError: The checkpoint you are trying to load has model type `qwen3_asr`
-but Transformers does not recognize this architecture.
+separator: demucs
+demucs version: 4.1.0
+model: htdemucs_ft
+device: cpu
 ```
 
-the selected Python environment has an incompatible PyPI Transformers build.
-Fix it in the same environment shown in **Python 解释器**:
-
-```powershell
-conda activate qwen312
-python -m pip install peft
-python -m pip install --upgrade "git+https://github.com/huggingface/transformers"
-```
-
-Verify:
-
-```powershell
-python -c "import transformers; print(transformers.__version__); from transformers import AutoConfig; c=AutoConfig.from_pretrained('models/hf/Qwen3-ForcedAligner-0.6B-hf'); print(c.model_type)"
-```
-
-Expected output includes:
+本机推荐把 Demucs 安装在 GUI 使用的同一个 `qwen312` 环境中。这样不需要单独的 `D:\Anconda\envs\demucs` 环境，也不会遇到：
 
 ```text
-5.15.0.dev0
-qwen3_asr
+EnvironmentLocationNotFound: Not a conda environment: D:\Anconda\envs\demucs
 ```
 
-For the normal Chinese karaoke output, R2 is the default selected mode. If R2 is
-missing, the command will fail during alignment until the checkpoint path is
-provided.
-
-If prepare fails during `separation_quality_check` with `missing audio file:
-...\work\audio\mix.wav`, rerun with the same settings. The batch entry now
-rebuilds a missing `mix.wav` from the original media and resumes from existing
-Demucs stems instead of repeating the full separation.
-
-The GUI page itself is scrollable. Use the mouse wheel to reach lower controls
-on smaller screens.
-
-## 5.2 Subtitle Fonts and Style
-
-Rendering uses ASS subtitles and libass through FFmpeg, the same subtitle format
-edited by Aegisub. The generated `.ass` file contains:
-
-- `Preview`: the upcoming line.
-- `Karaoke`: the active line with `\kf` timing.
-- `Meta`: the small label in the subtitle band.
-
-If `Noto Sans CJK SC` is not installed, the renderer no longer fails just
-because that exact font is missing. It tries common CJK families first and logs
-the selected fallback. For normal Windows Chinese output, `Microsoft YaHei` is
-the practical manual choice.
-
-Default colors:
+如果你确实使用独立 Demucs 环境，在 **Demucs 命令** 中填写：
 
 ```text
-高亮: #FFE800
-未唱: #909090
-预览: #A0A0A0
-描边: #101010
+conda run -n demucs demucs
 ```
 
-The GUI stores colors as `#RRGGBB` internally and converts them to ASS color
-values before rendering. CLI users can still pass:
+如果显卡可用，可以把 **对齐设备** 或 **Demucs 设备** 改为 `cuda`；否则保持 `cpu`。
 
-```powershell
---karaoke-primary-color "#FFE800"
---karaoke-secondary-color "#909090"
---subtitle-preview-color "#A0A0A0"
---subtitle-outline-color "#101010"
-```
+## 8. 续跑与强制刷新
 
-## 5.3 Video and Audio Backgrounds
+同一输入、同一参数重复运行会复用缓存。需要局部重跑时勾选：
 
-For MV/video input, the final video keeps the original frame size. Subtitles are
-drawn over the lower part of the image with outline styling; no separate bottom
-subtitle band is appended.
+- 重做准备：重新提取/准备音频。
+- 重做人声分离：重新运行 Demucs/Spleeter。
+- 重做对齐：重新生成时间戳 JSON。
+- 重做渲染：重新生成 ASS 和 MP4。
 
-For audio-only input, the final video uses:
+只改字幕样式、背景图或颜色时，通常只需要勾选 **重做渲染**。
 
-- the selected **音频背景图**, scaled and cropped to fill the output canvas; or
-- a built-in dark default background when no image is selected.
+## 9. 常见问题
 
-CLI equivalent:
-
-```powershell
---background-image "D:\path\to\cover.png"
-```
-
-## 6. Outputs
-
-For one input named `song.mp4`, the output structure is:
+`qwen3_asr` 不被 Transformers 识别：
 
 ```text
-song_qwen_fa/
-  work/audio/
-  alignments/
-  subtitles/
-  videos/individual/
-  batch_plan.json
-  batch_manifest.json
+ValueError: ... model type `qwen3_asr` ...
 ```
 
-The user-facing final MP4 is usually:
+说明当前 Python 环境里的 Transformers 太旧或不是源码版。请在 GUI 选择的同一个 Python 环境中安装支持 Qwen Forced Aligner 的 Transformers。
 
-```text
-videos/individual/r2_vocal_windowed.mp4
-```
+`missing audio file: ... work\audio\mix.wav`：
 
-If a stage fails, inspect:
+重新运行同一任务即可。当前准备阶段会在发现 mix 缺失时从原媒体重建，并复用已有分离结果。
 
-```text
-alignment.progress.json
-alignment.failure.json
-batch_manifest.json
-```
+生成结果不是最新样式：
+
+勾选 **重做渲染** 后再运行。当前渲染缓存版本已经更新，正常情况下旧的带左上角注释视频会自动失效并重渲染。

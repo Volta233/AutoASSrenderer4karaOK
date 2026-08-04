@@ -1,199 +1,158 @@
 # LyricAlignment
 
-中文优先、正在扩展多语言歌声的已知歌词强制对齐研究项目。仓库根目录固定为
-`LyricAlignment/`；日期后缀只用于 archive、run 和报告。
+LyricAlignment 是一个面向歌曲字幕烧录的工具链：输入音频或 MV、歌词 TXT 和 Qwen Forced Aligner/R2 checkpoint，自动完成歌词时间轴生成，并输出带 KTV 高亮字幕的 MP4。
 
+当前最实用的入口是 GUI。研究实验、评测和 inline-realign 仍保留在仓库内，但普通成品生成优先使用 `scripts/gui/run_gui.sh` 或 `scripts/gui/run_gui.py`。
 
-Raw + guarded Demucs karaoke demo:
+## 快速开始
 
-```text
-docs/manual/raw_guarded_karaoke_demo.md
+Windows 本机推荐使用 Git Bash 运行：
+
+```bash
+cd /d/小玩具/纯K工具v004/LyricAlignment
+bash scripts/gui/run_gui.sh
 ```
 
-GUI karaoke rendering tool:
+也可以直接用 Python 启动：
+
+```powershell
+cd D:\小玩具\纯K工具v004\LyricAlignment
+$env:PYTHONPATH = "src"
+D:\Anconda\envs\qwen312\python.exe scripts\gui\run_gui.py
+```
+
+默认 GUI 启动脚本会使用：
+
+```text
+D:\Anconda\envs\qwen312\python.exe
+```
+
+如果你的 Python 环境不在这个位置，可以覆盖：
+
+```bash
+GUI_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
+LYRICALIGN_PIPELINE_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
+bash scripts/gui/run_gui.sh
+```
+
+## GUI 常用流程
+
+1. 选择 **音频 / MV**。
+2. 选择歌词 TXT，或把歌词粘贴到文本框。
+3. 选择输出目录。
+4. 保持默认预设 `default`：`R2 + vocal + windowed`。
+5. 首次建议点 **预览 dry-run**，确认命令和路径。
+6. 点击 **开始生成成品**。
+7. 成品通常位于：
+
+```text
+<输出目录>/<歌曲名>/videos/individual/r2_vocal_windowed.mp4
+```
+
+GUI 详细说明见：
 
 ```text
 docs/manual/gui_karaoke_tool.md
 ```
 
-The corresponding detector/repair experiments E0-E5 are launched with:
+## 当前成品渲染行为
 
-```bash
-bash scripts/demo/run_raw_guarded_experiment_suite.sh
-```
+- MV/视频输入：保持原视频画布尺寸，字幕直接覆盖在画面下半区，不再额外拼接底部黑条。
+- 音频输入：默认生成深色背景视频；如果在 GUI 中选择背景图，则使用该图片铺满画布。
+- 字幕布局：高亮行和未唱行都位于下半区，模拟常见 KTV/MV 字幕效果。
+- 字幕样式：使用 ASS/libass 渲染，支持 Aegisub 风格的描边与 `\kf` 高亮计时。
+- 颜色设置：GUI 提供调色盘按钮，不需要用户手写十六进制颜色。
+- 元信息标签：成品视频不再烧录左上角的 `Chinese · R2 · ...` 这类说明文字。
 
-## 当前状态（2026-07-26）
+## 模型与 checkpoint
 
-Qwen Forced Aligner 首轮 LoRA 实验链已经完成并归档：
-
-- R0 raw；
-- matched-budget R1 projector-only；
-- R2 projector + top-half audio-attention LoRA；
-- M4Singer validation-only checkpoint selection；
-- M4Singer sealed test；
-- MIR-1K vocal-only OOD；
-- approximately 22/33/48/152-second diagnostics；
-- second full R2 seed；
-- missing-evaluation recovery；
-- metric and identity repair。
-
-Primary song-macro penalized boundary MAE:
-
-| Model | M4Singer test | MIR-1K OOD |
-|---|---:|---:|
-| R0 raw | 251.391 ms | 97.108 ms |
-| R1 projector-only | 90.775 ms | 44.007 ms |
-| R2 seed3407 | 79.590 ms | 42.557 ms |
-| R2 seed20260724 | 80.920 ms | 40.459 ms |
-
-当前不应立即扩展 LoRA；下一步是定位 approximately 150-second 序列中的
-局部对齐崩溃。
-
-
-## 当前 Demo / inline-realign 执行入口（2026-07-28）
-
-当前执行版本为 **Inline Realign v4 full mechanism**。正式运行前：
-
-```bash
-cd /home/hyan/LyricAlignment
-bash scripts/demo/verify_inline_realign_v4.sh
-```
-
-推荐先完成推理、指标、静态诊断和 compact evidence，再单独渲染：
-
-```bash
-RENDER_MODE=skip bash scripts/demo/run_inline_realign_smoke.sh
-bash scripts/demo/run_inline_realign_render_only.sh smoke \
-  /home/hyan/Data/lyricalign/demo_diagnostics/inline_realign_smoke_v4_full_20260728
-```
-
-Smoke 通过后运行 formal：
-
-```bash
-RENDER_MODE=skip bash scripts/demo/run_inline_realign_formal.sh
-bash scripts/demo/run_inline_realign_render_only.sh formal \
-  /home/hyan/Data/lyricalign/demo_diagnostics/inline_realign_formal_v4_full_20260728
-```
-
-普通中断不清理目录，使用相同 `OUT_ROOT` 和 `RESUME=1` 重跑。Run、stage、experiment item、visual item 和 render item 都具有独立身份与完整性检查。
-
-当前套件包括：
-
-- 30/60 秒固定、静音吸附和严格静音边界；
-- 全静音压缩诊断；
-- Raw→processor→selected→final 及最小修复；
-- stable 音频—歌词同步 exact/−2/−4 裁剪；
-- 少给、正确给和多给歌词的文本剂量实验；
-- exact/+2/+4、结构不升、零时长宽松和中位融合 realign；
-- canonical tolerant GT 指标；
-- 中文字符 timeline、完整离散时长 PMF、三层 inconsistency 图；
-- 每个 Demo 的窗口、realign、realign 执行、decoder 和 behavior 五类视频。
-
-所有 realign 仍为 shadow-only，`actual_writeback` 必须保持 0。
-
-详见：
+默认模型路径：
 
 ```text
-docs/sessions/20260728_inline_realign_v4_full_implementation_archive.md
-docs/experiments/20260728_inline_realign_full_mechanism_design.md
-docs/manual/inline_realign_smoke_formal.md
-docs/status/next_execution_plan.md
+models/hf/Qwen3-ForcedAligner-0.6B-hf
 ```
 
-## 通用 Demo 入口
-
-默认对同名媒体和 TXT 执行 `R2 + vocal + windowed`：
-
-```bash
-scripts/demo/run_qwen_fa_batch.sh /path/to/media_or_folder
-```
-
-- 视频：原画面上方保持不变，字幕在新增的底部黑色区域；
-- 音频：纯黑背景；
-- 默认最终音轨仍为原始歌曲，`vocal` 仅表示对齐输入；
-- 可选 R0/R1/R2、mix/vocal、full/windowed 单独或复合输出；
-- `hard_core_forward_overlap_compression_v6` 以歌词单元开始时间决定 60 秒核心归属；
-  当前核心内开始的单元完整提交，跨过核心末端也不截断；下一窗只把已提交
-  单元作为上下文，新的预测若与冻结前缀重叠，只裁掉左侧重叠部分，可压缩为
-  零时长，但不把结束时间整体后移；
-- `--language English` 使用英文词级输入；`--language Japanese` 使用 Nagisa 日文词级输入；
-- 日文解析后的词单元直接进入 forced-aligner chat template，不再二次分词；
-- 对齐失败保留 `alignment.progress.json` 与 `alignment.failure.json`，render
-  会跳过该项而不是追加一个缺失 `alignment.json` 的次生错误；
-- 中文/粤语按汉字字符并保留连续拉丁词，中英混杂不会再拆成英文字母；
-- 详细说明见 `docs/manual/qwen_fa_batch_demo.md`；
-- 实验讨论、失败实现与证据链见 `docs/sessions/20260726_demo_exploration_archive.md`。
-
-## 必读入口
-
-1. `AI_SESSION_ENTRY.md`
-2. `docs/status/project_current.md`
-3. `docs/sessions/20260726_demo_exploration_archive.md`
-4. `docs/manual/qwen_fa_batch_demo.md`
-5. `docs/sessions/20260724_qwen_fa_followup_repair_archive.md`
-6. `reports/review/20260724_qwen_fa_followup_repair_review.md`
-7. `reports/audits/20260724_qwen_fa_long_b180_outlier_audit.md`
-8. `docs/status/next_execution_plan.md`
-
-## 指标口径
-
-Canonical schema:
+默认 R2 checkpoint 路径：
 
 ```text
-character_interval_metrics_v3_tolerant
+models/R2checkpoint
 ```
 
-关键规则：
-
-- valid / invalid / missing 互斥；
-- 主指标为带缺失惩罚的 per-song macro boundary MAE；
-- valid-only 使用完全相同的有效集合计算分子与分母；
-- `character_coverage` 为有效字符比例；
-- `song_coverage` 为至少有一个有效字符的歌曲比例；
-- `complete_song_coverage` 为整首全部字符有效的歌曲比例。
-
-原始 v2 指标不覆盖；修正版位于：
+R2 checkpoint 目录需要包含：
 
 ```text
-results/recomputed/20260724_character_metrics_v3/
+models/R2checkpoint/
+  adapter/
+  checkpoint_identity.json
+  projector.pt
+  trainer_state.pt
 ```
 
-## Canonical result files
+如果 GUI 日志提示 `qwen3_asr` 不被 Transformers 识别，说明当前 Python 环境里的 Transformers 版本不兼容。需要在 GUI 选择的同一个 Python 环境里安装支持 Qwen Forced Aligner 的源码版 Transformers。
+
+## 字体与 Demucs
+
+中文默认字体优先尝试 `Noto Sans CJK SC`。Windows 本机没有该字体时，渲染器会尝试常见中文字体回退；GUI 里也可以直接填写：
 
 ```text
-results/comparisons/20260724_qwen_fa_followup_final_summary.json
-reports/progress/20260724_qwen_fa_overnight_overall_summary.md
-reports/audits/20260724_qwen_fa_long_b180_outlier_audit.md
+Microsoft YaHei
 ```
 
-旧的 provisional summary 保留作为历史证据，不作为当前正式结果表。
+默认人声分离器为 Demucs：
 
-## 强约束
+```text
+demucs==4.1.0
+model: htdemucs_ft
+mode: --two-stems vocals
+```
 
-- checkpoint 只允许使用 validation 选择；
-- 不根据 test/OOD 修改 checkpoint；
-- 不静默覆盖原始 aggregate JSON；
-- metric 修正必须从逐字符 reference/prediction 重算；
-- `rule_validated` 是 weak supervision，不等同于人工 GT；
-- synthetic approximately 152.5-second set 不是自然三分钟 benchmark；
-- checkpoint、模型缓存、音频和大型 prediction 文件不进入 Git/archive。
+本机推荐让 Demucs 安装在同一个 `qwen312` 环境中，避免 `EnvironmentLocationNotFound: ...\envs\demucs` 这类独立 conda 环境路径错误。确实使用独立环境时，在 GUI 的 **Demucs 命令** 中填写完整命令，例如：
 
-## 顶层目录
+```text
+conda run -n demucs demucs
+```
+
+## CLI 入口
+
+GUI 底层调用同一个批处理入口：
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts\demo\run_qwen_fa_batch.py "D:\path\to\song.mp4" `
+  --lyrics "D:\path\to\lyrics.txt" `
+  --preset default `
+  --separator demucs `
+  --demucs-device cpu `
+  --render-audio source `
+  --output-dir "D:\path\to\outputs"
+```
+
+CLI 详细说明见：
+
+```text
+docs/manual/qwen_fa_batch_demo.md
+```
+
+## 目录结构
 
 | 路径 | 作用 |
 |---|---|
-| `configs/` | 模型、训练、数据和 metric 配置 |
-| `data/` | 轻量 schema、registry 和 manifest 模板 |
-| `src/lyricalign/` | 核心实现 |
-| `scripts/` | 可复现入口 |
-| `runs/` | 轻量执行证据与外部产物索引 |
-| `results/` | 原始、修正和比较结果 |
-| `reports/` | 审计、进展和研究报告 |
-| `docs/` | 原则、状态、manual 和 session |
-| `tests/` | 回归与执行合同测试 |
+| `src/lyricalign/` | 核心实现、GUI 命令封装、字幕渲染与对齐逻辑 |
+| `scripts/gui/` | GUI 启动脚本 |
+| `scripts/demo/` | 批处理、渲染、模型实验入口 |
+| `docs/manual/` | 面向使用者的手册 |
+| `models/` | 本地模型和 checkpoint 放置位置，不应提交大文件 |
+| `tests/` | 回归测试 |
 
-Remote:
+## 开发验证
 
-```text
-git@github.com:heyan2454/LyricAlignment.git
+常用 focused 检查：
+
+```powershell
+cd D:\小玩具\纯K工具v004\LyricAlignment
+$env:PYTHONPATH = "src"
+python -m pytest -q tests/test_gui_command.py tests/test_qwen_fa_batch_demo.py
+python -m compileall -q src scripts tests
 ```
+
+仓库仍包含 Qwen Forced Aligner、R0/R1/R2、inline-realign 和评测相关研究资料。研究入口请参考 `AGENTS.md`、`docs/status/` 和 `docs/sessions/`；普通用户生成成品视频优先阅读本 README 与 GUI 手册。
