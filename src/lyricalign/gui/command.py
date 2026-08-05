@@ -6,7 +6,40 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[3]
+def _looks_like_project_root(path: Path) -> bool:
+    return (path / "scripts" / "demo" / "run_qwen_fa_batch.py").is_file() and (
+        path / "src" / "lyricalign" / "gui" / "app.py"
+    ).is_file()
+
+
+def _candidate_project_roots() -> list[Path]:
+    candidates: list[Path] = []
+    configured_root = os.environ.get("LYRICALIGN_ROOT")
+    if configured_root:
+        candidates.append(Path(configured_root))
+
+    executable = Path(sys.executable).resolve()
+    candidates.extend([executable.parent, *executable.parents])
+
+    source_file = Path(__file__).resolve()
+    candidates.extend([source_file.parent, *source_file.parents])
+    candidates.append(Path.cwd())
+    return candidates
+
+
+def find_project_root() -> Path:
+    for candidate in _candidate_project_roots():
+        if _looks_like_project_root(candidate):
+            return candidate
+    searched = os.pathsep.join(str(path) for path in _candidate_project_roots())
+    raise RuntimeError(
+        "Unable to locate the LyricAlignment project root. "
+        "Set LYRICALIGN_ROOT to the directory that contains scripts/ and src/. "
+        f"Searched: {searched}"
+    )
+
+
+ROOT = find_project_root()
 BATCH_SCRIPT = ROOT / "scripts" / "demo" / "run_qwen_fa_batch.py"
 DEFAULT_QWEN_MODEL_PATH = ROOT / "models" / "hf" / "Qwen3-ForcedAligner-0.6B-hf"
 DEFAULT_R2_CHECKPOINT_PATH = ROOT / "models" / "R2checkpoint"

@@ -156,3 +156,20 @@ python -m compileall -q src scripts tests
 ```
 
 仓库仍包含 Qwen Forced Aligner、R0/R1/R2、inline-realign 和评测相关研究资料。研究入口请参考 `AGENTS.md`、`docs/status/` 和 `docs/sessions/`；普通用户生成成品视频优先阅读本 README 与 GUI 手册。
+
+## Windows clickable exe
+
+Build the no-terminal GUI launcher:
+
+```powershell
+python -m pip install -e .[gui-exe]
+python scripts\windows\build_gui_exe.py --clean
+```
+
+Then double-click:
+
+```text
+dist\LyricAlignmentGUI\LyricAlignmentGUI.exe
+```
+
+See `docs/manual/windows_gui_exe.md`.

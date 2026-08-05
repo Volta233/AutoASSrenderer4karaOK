@@ -25,6 +25,9 @@ demo-demucs = [
 test = [
   "pytest>=8,<9",
 ]
+gui-exe = [
+  "pyinstaller>=6,<7",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

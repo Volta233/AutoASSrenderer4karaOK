@@ -30,6 +30,7 @@ from lyricalign.gui.command import (
     DEFAULT_QWEN_MODEL_PATH,
     DEFAULT_R2_CHECKPOINT_PATH,
     GuiRunConfig,
+    ROOT,
     build_batch_command,
     build_child_environment,
 )
@@ -409,7 +410,7 @@ class KaraokeGui:
             try:
                 self.process = subprocess.Popen(
                     command,
-                    cwd=str(Path(__file__).resolve().parents[3]),
+                    cwd=str(ROOT),
                     env=build_child_environment(config),
                     text=True,
                     stdout=subprocess.PIPE,
