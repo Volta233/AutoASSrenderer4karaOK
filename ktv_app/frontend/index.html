@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>映词 · LyriFrame</title>
-    <link rel="stylesheet" href="/style.css?v=release-1.3.5" />
+    <link rel="stylesheet" href="/style.css?v=release-1.3.5-audio" />
   </head>
   <body>
     <header class="app-header">
@@ -22,22 +22,64 @@
     </header>
     <main>
       <nav class="stepnav" aria-label="制作步骤">
-        <button data-step="1" class="active"><b>1</b><span>选择视频</span><i></i></button>
+        <button data-step="1" class="active"><b>1</b><span>准备素材</span><i></i></button>
         <button data-step="2" disabled><b>2</b><span>确认歌词</span><i></i></button>
         <button data-step="3" disabled><b>3</b><span>歌词同步</span><i></i></button>
         <button data-step="4" disabled><b>4</b><span>导出视频</span><i></i></button>
       </nav>
       <section id="step1" class="step-panel setup-panel">
-        <div class="stepheading"><h2>选择视频</h2></div>
+        <div class="stepheading"><h2>准备素材</h2></div>
         <section class="card">
-          <label class="video-picker"
-            ><strong>添加歌曲视频</strong><span class="muted">MP4、MKV、MOV、AVI、WebM</span
-            ><input id="videoFile" type="file" accept="video/*,.mkv,.mov,.avi,.webm"
-          /></label>
-          <details class="advanced">
-            <summary>使用本地路径</summary>
-            <label>视频路径<input id="videoPath" placeholder="D:\歌曲\演唱.mp4" /></label>
-          </details>
+          <div class="source-switch" role="group" aria-label="素材来源">
+            <button type="button" class="source-mode active" data-source="video" aria-pressed="true">
+              歌曲视频
+            </button>
+            <button type="button" class="source-mode" data-source="audio_image" aria-pressed="false">
+              音频 + 背景图
+            </button>
+            <span id="sourceHint" class="muted">上传一个带画面的视频文件</span>
+          </div>
+          <p id="sourceCurrent" class="source-meta muted" hidden></p>
+          <div id="videoSource">
+            <label class="video-picker"
+              ><strong>添加歌曲视频</strong><span class="muted">MP4、MKV、MOV、AVI、WebM</span
+              ><input id="videoFile" type="file" accept="video/*,.mkv,.mov,.avi,.webm"
+            /></label>
+            <details class="advanced">
+              <summary>使用本地路径</summary>
+              <label>视频路径<input id="videoPath" placeholder="D:\歌曲\演唱.mp4" /></label>
+            </details>
+          </div>
+          <div id="audioSource" hidden>
+            <label class="video-picker"
+              ><strong>添加歌曲音频</strong><span class="muted">MP3、M4A、WAV、FLAC</span
+              ><input id="audioFile" type="file" accept=".mp3,.m4a,.wav,.flac,.aac,.ogg,audio/*"
+            /></label>
+            <p id="audioSummary" class="source-meta muted" role="status">选择音频后会显示时长</p>
+            <label class="video-picker"
+              ><strong>添加背景图</strong><span class="muted">JPG、PNG、WebP、BMP</span
+              ><input id="backgroundFile" type="file" accept=".jpg,.jpeg,.png,.webp,.bmp,image/*"
+            /></label>
+            <div class="background-preview">
+              <img id="backgroundPreview" alt="背景图预览" hidden />
+              <p id="backgroundSummary" class="source-meta muted">
+                选择一张图后会在这里预览；字幕叠加在画面下方。
+              </p>
+            </div>
+            <div class="formgrid source-options">
+              <label
+                >画布<select id="canvas">
+                  <option value="">跟随图片比例</option>
+                  <option value="1920x1080">1920 × 1080 横屏</option>
+                  <option value="1280x720">1280 × 720 横屏</option>
+                  <option value="1080x1920">1080 × 1920 竖屏</option>
+                </select></label
+              >
+            </div>
+            <p class="source-note muted">
+              音频与背景图会先合成为视频，之后再走完全相同的流程；成片音轨来自这段音频。
+            </p>
+          </div>
           <div class="formgrid song-fields">
             <label>歌曲名<input id="song" placeholder="输入歌名" /></label>
             <label>歌手<input id="artist" placeholder="选填" /></label>
@@ -275,6 +317,6 @@
         <p class="muted">关闭浏览器不会停止后台处理。退出程序请双击 stop.cmd，未完成的任务会中断。</p>
       </section>
     </dialog>
-    <script type="module" src="/app.js?v=release-1.3.5"></script>
+    <script type="module" src="/app.js?v=release-1.3.5-audio"></script>
   </body>
 </html>

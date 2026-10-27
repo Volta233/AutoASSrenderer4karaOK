@@ -11,7 +11,9 @@ import {
 import { createTimelineEditor } from './timeline-editor.js';
 
 let currentStep = 1,
-  locatorReady = false;
+  locatorReady = false,
+  sourceMode = 'video',
+  backgroundURL = '';
 let project = null,
   timeline = null,
   selected = null,
@@ -54,6 +56,91 @@ const { renderLines, renderUnits } = createTimelineEditor({
 function fileURL(name) {
   return `/api/projects/${project.id}/files/${name.split('/').map(encodeURIComponent).join('/')}`;
 }
+
+// The player stays empty until the media step has produced a playable file.
+function playerSource(p) {
+  if (!p.media) return '';
+  return p.playback ? fileURL(p.playback) : `/api/projects/${p.id}/video`;
+}
+
+function setSourceMode(mode) {
+  sourceMode = mode;
+  document.querySelectorAll('.source-mode').forEach((button) => {
+    const active = button.dataset.source === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  $('videoSource').hidden = mode !== 'video';
+  $('audioSource').hidden = mode !== 'audio_image';
+  $('sourceHint').textContent =
+    mode === 'video' ? '上传一个带画面的视频文件' : '一段音频 + 一张背景图，先合成视频';
+  $('create').textContent = mode === 'video' ? '准备视频' : '合成视频并继续';
+}
+
+function clearBackgroundPreview() {
+  if (backgroundURL) URL.revokeObjectURL(backgroundURL);
+  backgroundURL = '';
+  $('backgroundPreview').hidden = true;
+  $('backgroundPreview').removeAttribute('src');
+  $('backgroundSummary').textContent = '选择一张图后会在这里预览；字幕叠加在画面下方。';
+}
+
+function resetSourceInputs() {
+  $('videoFile').value = '';
+  $('videoPath').value = '';
+  $('audioFile').value = '';
+  $('backgroundFile').value = '';
+  $('canvas').value = '';
+  $('audioSummary').textContent = '选择音频后会显示时长';
+  clearBackgroundPreview();
+  setSourceMode('video');
+}
+
+function fileSize(bytes) {
+  return bytes >= 1048576
+    ? (bytes / 1048576).toFixed(1) + ' MB'
+    : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
+document.querySelectorAll('.source-mode').forEach((button) => {
+  button.onclick = () => setSourceMode(button.dataset.source);
+});
+$('audioFile').onchange = () => {
+  const file = $('audioFile').files[0];
+  if (!file) {
+    $('audioSummary').textContent = '选择音频后会显示时长';
+    return;
+  }
+  const size = fileSize(file.size);
+  $('audioSummary').textContent = `${file.name} · ${size} · 读取时长…`;
+  const probe = new Audio(),
+    url = URL.createObjectURL(file);
+  probe.preload = 'metadata';
+  probe.onloadedmetadata = () => {
+    $('audioSummary').textContent = `${file.name} · ${size} · ${probe.duration.toFixed(1)} 秒`;
+    URL.revokeObjectURL(url);
+  };
+  probe.onerror = () => {
+    $('audioSummary').textContent = `${file.name} · ${size} · 浏览器读不到时长，仍可合成`;
+    URL.revokeObjectURL(url);
+  };
+  probe.src = url;
+};
+$('backgroundFile').onchange = () => {
+  const file = $('backgroundFile').files[0];
+  if (!file) {
+    clearBackgroundPreview();
+    return;
+  }
+  if (backgroundURL) URL.revokeObjectURL(backgroundURL);
+  backgroundURL = URL.createObjectURL(file);
+  const image = $('backgroundPreview');
+  image.hidden = false;
+  image.onload = () => {
+    $('backgroundSummary').textContent = `${file.name} · ${image.naturalWidth} × ${image.naturalHeight} · ${fileSize(file.size)}`;
+  };
+  image.src = backgroundURL;
+};
 async function listProjects() {
   const list = await api('/projects');
   const options = list.map((p) => {
@@ -110,7 +197,14 @@ function refreshSteps() {
   $('retryMedia').hidden = !project;
   $('retryMedia').disabled = !!project?.busy;
   $('mediaSummary').textContent = project?.media
-    ? `${project.media.duration.toFixed(1)} 秒 · 视频已就绪`
+    ? `${project.media.duration.toFixed(1)} 秒 · ${
+        project.media_source?.kind === 'audio_image' ? '音频 + 背景图已合成' : '视频已就绪'
+      }`
+    : '';
+  const source = project?.media_source;
+  $('sourceCurrent').hidden = !source;
+  $('sourceCurrent').textContent = source
+    ? `当前素材：${source.kind === 'audio_image' ? '音频 + 背景图' : '视频'} · ${project.video_name || '未命名'}`
     : '';
   $('lyricsSummary').textContent = project?.lyrics?.length
     ? `已保存 ${project.lyrics.length} 行`
@@ -147,9 +241,11 @@ async function loadProject(pid) {
   playbackFailed = false;
   playbackRequested = false;
   currentPlayback = project.playback || '';
-  $('videoPath').value = project.video;
-  $('videoFile').value = '';
-  $('video').src = currentPlayback ? fileURL(currentPlayback) : `/api/projects/${pid}/video`;
+  resetSourceInputs();
+  $('videoPath').value = project.media_source?.kind === 'audio_image' ? '' : project.video;
+  if (project.media_source?.kind === 'audio_image') setSourceMode('audio_image');
+  if (project.media) $('video').src = playerSource(project);
+  else $('video').removeAttribute('src');
   $('lyrics').value = (project.lyrics || project.timeline?.lines || [])
     .map((l) => l.text)
     .join('\n');
@@ -342,19 +438,29 @@ $('create').onclick = handler(async () => {
   await flush();
   $('create').disabled = true;
   try {
+    const data = new FormData();
+    for (const key of ['song', 'artist', 'language']) data.append(key, $(key).value);
     let p;
-    if ($('videoFile').files[0]) {
-      const data = new FormData();
-      data.append('video', $('videoFile').files[0]);
-      for (const k of ['song', 'artist', 'language']) data.append(k, $(k).value);
+    if (sourceMode === 'audio_image') {
+      const audio = $('audioFile').files[0],
+        background = $('backgroundFile').files[0];
+      if (!audio) throw Error('请先选择音频文件');
+      if (!background) throw Error('请先选择背景图');
+      data.append('audio', audio);
+      data.append('background', background);
+      data.append('canvas', $('canvas').value);
       p = await api('/upload', 'POST', data);
-    } else
+    } else if ($('videoFile').files[0]) {
+      data.append('video', $('videoFile').files[0]);
+      p = await api('/upload', 'POST', data);
+    } else if ($('videoPath').value.trim()) {
       p = await api('/projects', 'POST', {
-        video: $('videoPath').value,
+        video: $('videoPath').value.trim(),
         song: $('song').value,
         artist: $('artist').value,
         language: $('language').value,
       });
+    } else throw Error('请选择视频文件，或切换到「音频 + 背景图」');
     await loadProject(p.id);
     await listProjects();
     await showStep(1);
@@ -481,6 +587,7 @@ async function poll() {
     applyProject(p, changed);
     if ($('saveState').textContent.startsWith('连接中断')) $('saveState').textContent = '已连接';
     if (!peaks && p.media) await loadWave();
+    if (p.media && !$('video').getAttribute('src')) $('video').src = playerSource(p);
     if (p.playback && currentPlayback !== p.playback) {
       currentPlayback = p.playback;
       $('video').src = fileURL(p.playback);
@@ -549,8 +656,8 @@ $('newWorkflow').onclick = handler(async () => {
   $('video').removeAttribute('src');
   $('workspace').hidden = true;
   $('projectList').value = '';
-  for (const key of ['song', 'artist', 'videoPath']) $(key).value = '';
-  $('videoFile').value = '';
+  for (const key of ['song', 'artist']) $(key).value = '';
+  resetSourceInputs();
   $('language').value = 'auto';
   sessionStorage.removeItem('ktvWorkflow');
   sessionStorage.removeItem('ktvStep');

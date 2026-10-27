@@ -265,6 +265,60 @@ button:disabled {
   background: transparent;
   border: 0;
 }
+.source-switch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.source-mode {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+.source-mode:hover {
+  color: var(--text);
+}
+.source-mode.active {
+  background: #29271f;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.source-meta {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border: 1px dashed var(--edge);
+  border-radius: 8px;
+}
+#audioSource .video-picker ~ .video-picker {
+  margin-top: 16px;
+}
+.background-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+.background-preview img {
+  max-width: 168px;
+  max-height: 120px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--input);
+}
+.background-preview .source-meta {
+  flex: 1;
+  margin: 0;
+}
+.source-options {
+  margin-top: 20px;
+}
+.source-note {
+  margin-top: 16px;
+}
 .song-fields {
   margin-top: 24px;
 }
