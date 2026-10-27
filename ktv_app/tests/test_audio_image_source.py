@@ -12,9 +12,7 @@ from ktv_app.backend.tasks import media as media_tasks
 from ktv_app.config import Settings
 from ktv_app.media import even, probe, run, still_canvas, still_video
 
-live = pytest.mark.skipif(
-    os.getenv("KTV_LIVE_TESTS") != "1", reason="需要真实 FFmpeg"
-)
+live = pytest.mark.skipif(os.getenv("KTV_LIVE_TESTS") != "1", reason="需要真实 FFmpeg")
 
 
 def audio_image(client, audio=b"ID3audio", background=b"PNGimage", **data):
