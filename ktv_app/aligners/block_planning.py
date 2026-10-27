@@ -348,6 +348,28 @@ def build_adaptive_plan(
     return plan, first, second
 
 
+def frozen_boundaries(plan, max_seconds):
+    """Pick the cuts that may stay fixed for the next relaxation round.
+
+    A block that overruns makes its opening cut suspect: the cut was chosen
+    when weaker evidence was all that existed, and a better cut inside the
+    block only becomes verifiable by a later relaxation. Freezing the old cut
+    forever leaves the overrun in place, because new cuts can only be added
+    after it, never replace it. So the opening cut goes back into competition
+    while every other cut stays nailed down.
+    """
+    if not plan:
+        return None
+    reopened = {
+        block["indices"][0] - 1
+        for block in plan["blocks"]
+        if block["duration"] >= max_seconds
+    }
+    return [
+        cut for cut in plan["boundaries"] if cut["after_line_index"] not in reopened
+    ]
+
+
 def build_duration_limited_plan(
     lines,
     tokens,
@@ -413,7 +435,7 @@ def build_duration_limited_plan(
             source_keys=keys,
             relaxation_level=min(level, 2),
             preserved_candidates=candidates,
-            mandatory_boundaries=plan["boundaries"] if plan else None,
+            mandatory_boundaries=frozen_boundaries(plan, max_input_seconds),
         )
         for block in plan["blocks"]:
             if block["duration"] < max_input_seconds:

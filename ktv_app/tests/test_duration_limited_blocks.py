@@ -1,5 +1,6 @@
 import pytest
 
+from ktv_app.aligners.block_planning import frozen_boundaries
 from ktv_app.aligners.reliable_blocks import (
     build_duration_limited_plan,
     match_boundary_lines,
@@ -115,3 +116,43 @@ def test_formal_pipeline_always_requires_the_90_second_asr_route():
         AlignmentOptions(model="tifa", max_tifa_input_seconds=90)
     with pytest.raises(ValueError):
         AlignmentOptions(model="reliable_blocks_tifa", max_tifa_input_seconds=91)
+
+
+def overrun_plan():
+    return {
+        "boundaries": [
+            {"after_line_index": 0, "time": 35.6},
+            {"after_line_index": 9, "time": 108.4},
+            {"after_line_index": 11, "time": 119.4},
+            {"after_line_index": 16, "time": 212.5},
+            {"after_line_index": 18, "time": 232.5},
+        ],
+        "blocks": [
+            {"indices": [0], "duration": 35.6},
+            {"indices": list(range(1, 10)), "duration": 72.8},
+            {"indices": [10, 11], "duration": 11.0},
+            {"indices": [12, 13, 14, 15, 16], "duration": 93.1},
+            {"indices": [17, 18], "duration": 20.0},
+            {"indices": list(range(19, 22)), "duration": 34.1},
+        ],
+    }
+
+
+def test_overrun_block_reopens_only_its_opening_cut():
+    kept = frozen_boundaries(overrun_plan(), 90)
+    assert [cut["after_line_index"] for cut in kept] == [0, 9, 16, 18]
+
+
+def test_bounded_plan_freezes_every_cut():
+    plan = overrun_plan()
+    kept = frozen_boundaries(plan, 300)
+    assert [cut["after_line_index"] for cut in kept] == [0, 9, 11, 16, 18]
+
+
+def test_first_round_and_missing_plan_freeze_nothing():
+    assert frozen_boundaries(None, 90) is None
+    single = {
+        "boundaries": [{"after_line_index": 3, "time": 200.0}],
+        "blocks": [{"indices": list(range(0, 4)), "duration": 200.0}],
+    }
+    assert [cut["after_line_index"] for cut in frozen_boundaries(single, 90)] == [3]
