@@ -30,8 +30,8 @@ class Projects:
     def folder(self, pid):
         return self.repository.folder(pid)
 
-    def create(self, video, song, artist, language):
-        return self.repository.create(video, song, artist, language)
+    def create(self, video, song, artist, language, source=None):
+        return self.repository.create(video, song, artist, language, source)
 
     def list(self):
         return self.repository.list()

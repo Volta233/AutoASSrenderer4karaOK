@@ -10,9 +10,13 @@ from pydantic import BaseModel, Field
 
 from ..config import Settings
 from .. import APP_NAME, __version__
+from ..media import AUDIO_SUFFIXES, IMAGE_SUFFIXES, VIDEO_SUFFIXES
 from ..timeline import Timeline, Style, quality
 from .service import Projects
 from ..text_normalization import clean_lyric_text
+
+MAX_AUDIO_MB = 200
+MAX_IMAGE_MB = 30
 
 
 class Create(BaseModel):
@@ -20,6 +24,45 @@ class Create(BaseModel):
     song: str = ""
     artist: str = ""
     language: str = "auto"
+
+
+def requested_canvas(value):
+    """Parse an optional ``宽x高`` canvas request; empty means follow the image."""
+    value = (value or "").strip().lower()
+    if not value:
+        return None
+    parts = value.split("x")
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        raise ValueError("画布尺寸格式应为 宽x高，例如 1920x1080")
+    width, height = (int(part) for part in parts)
+    if not (320 <= width <= 3840 and 240 <= height <= 3840) or width % 2 or height % 2:
+        raise ValueError("画布宽高必须是 320–3840 之间的偶数")
+    return (width, height)
+
+
+async def save_upload(file, folder, allowed, label, limit_mb):
+    """Stream one uploaded file to disk and reject unsupported or oversized input."""
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in allowed:
+        raise ValueError(f"不支持的{label}格式")
+    path = folder / (os.urandom(16).hex() + suffix)
+    limit = limit_mb * 1024 * 1024
+    written = 0
+    try:
+        with path.open("wb") as target:
+            while chunk := await file.read(1024 * 1024):
+                written += len(chunk)
+                if written > limit:
+                    raise ValueError(f"{label}文件不能超过 {limit_mb} MB")
+                target.write(chunk)
+        if not written:
+            raise ValueError(f"{label}文件为空")
+        return path
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    finally:
+        await file.close()
 
 
 class Lyrics(BaseModel):
@@ -158,16 +201,53 @@ def create_app(settings=None):
 
     @app.post("/api/upload")
     async def upload(
-        video: UploadFile = File(...),
+        video: UploadFile | None = File(None),
+        audio: UploadFile | None = File(None),
+        background: UploadFile | None = File(None),
+        canvas: str = Form(""),
         song: str = Form(""),
         artist: str = Form(""),
         language: str = Form("auto"),
     ):
-        suffix = Path(video.filename or "").suffix.lower()
-        if suffix not in (".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"):
-            raise ValueError("不支持的视频格式")
         uploads = settings.projects / "_uploads"
         uploads.mkdir(exist_ok=True)
+        if audio or background:
+            if not (audio and background):
+                raise ValueError("音频和背景图需要一起提供")
+            size = requested_canvas(canvas)
+            audio_path = await save_upload(
+                audio, uploads, AUDIO_SUFFIXES, "音频", MAX_AUDIO_MB
+            )
+            try:
+                background_path = await save_upload(
+                    background, uploads, IMAGE_SUFFIXES, "背景图", MAX_IMAGE_MB
+                )
+            except Exception:
+                audio_path.unlink(missing_ok=True)
+                raise
+            try:
+                project = store.create(
+                    None,
+                    song,
+                    artist,
+                    language,
+                    source={
+                        "audio": str(audio_path),
+                        "background": str(background_path),
+                        "canvas": size,
+                        "name": audio.filename,
+                    },
+                )
+            except Exception:
+                audio_path.unlink(missing_ok=True)
+                background_path.unlink(missing_ok=True)
+                raise
+            return store.get(project["id"])
+        if not video:
+            raise ValueError("请选择视频文件，或同时提供音频与背景图")
+        suffix = Path(video.filename or "").suffix.lower()
+        if suffix not in VIDEO_SUFFIXES:
+            raise ValueError("不支持的视频格式")
         path = uploads / (os.urandom(16).hex() + suffix)
         try:
             with path.open("wb") as f:
