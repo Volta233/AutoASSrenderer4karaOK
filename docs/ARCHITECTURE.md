@@ -4,7 +4,7 @@
 
 音频与模型分工：
 
-1. `media.py` 提取音频并记录原始时钟；`separation.py` 核验输入、权重和缓存，独立 `separation_worker.py` 调用 Kim 官方 Mel-Band Roformer，完整人声等长保留。
+1. `media.py` 提取音频并记录原始时钟；没有 MV 时先由 `still_video` 把音频与背景图合成为带静态画面的 MP4，此后与视频输入走同一条路径。`separation.py` 核验输入、权重和缓存，独立 `separation_worker.py` 调用 Kim 官方 Mel-Band Roformer，完整人声等长保留。
 2. `recognition.py` 运行两遍短窗口 Qwen3-ASR，识别真实演唱内容。ASR 短窗口的粗时间来自音频窗口，ASR 本身不生成词级时间戳。
 3. TIFA 为 ASR 窗口提供时间定位，再与确认歌词顺序匹配，寻找分块切点。逐步放宽候选要求，正式输入保持小于 90 秒；无法形成安全切点时明确提示处理失败。
 4. `aligners/` 用 TIFA 对正式歌词块对齐，优先保留原生词边界；局部失败重试，缺词用有边界约束的补齐并标记估算。不会把估算计为模型定位成功。没有加载 Qwen FA。
