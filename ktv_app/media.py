@@ -4,6 +4,16 @@ import os
 import subprocess
 from pathlib import Path
 
+VIDEO_SUFFIXES = (".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v")
+AUDIO_SUFFIXES = (".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".opus")
+IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
+
+# A still background image is encoded at a fixed cadence so downstream stages
+# see a normal constant-frame-rate video; the picture never changes between frames.
+STILL_FPS = 25
+STILL_MAX_EDGE = 1920
+STILL_MIN_EDGE = 360
+
 
 def run(command, timeout=1800, log=None, cwd=None):
     result = subprocess.run(
@@ -157,6 +167,132 @@ def crop(wav, out, start, end, settings):
             out,
         ]
     )
+
+
+def audio_media(audio, settings):
+    """Duration and codec of a bare audio file; embedded cover art is ignored."""
+    raw = json.loads(
+        run(
+            [
+                settings.tool("ffprobe"),
+                "-v",
+                "error",
+                "-show_format",
+                "-show_streams",
+                "-of",
+                "json",
+                audio,
+            ]
+        )
+    )
+    stream = next((s for s in raw["streams"] if s["codec_type"] == "audio"), None)
+    if not stream:
+        raise ValueError("音频文件没有可用的音轨")
+    duration = float(raw["format"].get("duration") or 0)
+    if duration <= 0:
+        raise ValueError("音频文件时长为空")
+    return {"duration": duration, "codec": stream["codec_name"]}
+
+
+def image_size(image, settings):
+    raw = json.loads(
+        run(
+            [
+                settings.tool("ffprobe"),
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "json",
+                image,
+            ]
+        )
+    )
+    stream = next((s for s in raw["streams"] if s.get("width")), None)
+    if not stream:
+        raise ValueError("无法读取背景图尺寸，请换用 JPG/PNG")
+    return int(stream["width"]), int(stream["height"])
+
+
+def even(value):
+    return max(2, int(value) // 2 * 2)
+
+
+def still_canvas(width, height):
+    """Keep the picture's aspect ratio, capped on the long edge and never too small."""
+    long_edge, short_edge = max(width, height), min(width, height)
+    scale = min(1.0, STILL_MAX_EDGE / long_edge)
+    if short_edge * scale < STILL_MIN_EDGE:
+        scale = STILL_MIN_EDGE / short_edge
+    return even(round(width * scale)), even(round(height * scale))
+
+
+def still_video(audio, image, out, settings, width=None, height=None):
+    """Compose a background image plus an audio file into an ordinary MP4.
+
+    The result carries the audio track re-encoded to AAC and a static picture, so
+    probing, alignment, playback and export need no special cases.
+    """
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    duration = audio_media(audio, settings)["duration"]
+    if width and height:
+        canvas = (even(width), even(height))
+    else:
+        canvas = still_canvas(*image_size(image, settings))
+    run(
+        [
+            settings.tool("ffmpeg"),
+            "-nostdin",
+            "-v",
+            "error",
+            "-y",
+            "-loop",
+            "1",
+            "-framerate",
+            str(STILL_FPS),
+            "-i",
+            image,
+            "-i",
+            audio,
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-t",
+            f"{duration:.3f}",
+            "-vf",
+            (
+                f"scale={canvas[0]}:{canvas[1]}:"
+                "force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop={canvas[0]}:{canvas[1]},setsar=1"
+            ),
+            "-r",
+            str(STILL_FPS),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-tune",
+            "stillimage",
+            "-crf",
+            "20",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            out,
+        ],
+        log=out.with_suffix(".log"),
+    )
+    return out
 
 
 def browser_proxy(video, out, settings):
