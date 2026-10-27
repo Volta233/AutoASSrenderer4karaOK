@@ -1,2 +1,0 @@
-item_id,audio_path,vocal_path,gt_lyrics_path,language,duration_sec,split,protocol,notes
-sample001,/path/to/audio.wav,/path/to/vocals.wav,/path/to/lyrics.txt,zh,60.0,asr_smoke,closed_book,replace with real paths

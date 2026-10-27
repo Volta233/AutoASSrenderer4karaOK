@@ -1,1 +1,0 @@
-scripts/smoke/run_qwen_forced_aligner_smoke.py --config /tmp/qwen_m4singer_synthetic_v2.yaml

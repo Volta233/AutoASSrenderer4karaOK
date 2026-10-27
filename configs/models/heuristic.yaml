@@ -1,7 +1,0 @@
-model_id: heuristic_token_baseline
-role: optional_non_neural_sanity_baseline
-status: deferred
-strategy: to_define_without_line_segmentation
-notes:
-  - Do not distribute or evaluate by lyric lines.
-  - Add only if it provides a meaningful token-level sanity check.

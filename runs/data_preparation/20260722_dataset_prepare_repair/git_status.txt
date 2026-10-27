@@ -1,3 +1,0 @@
-Start: clean at 035ae6e7c7bb963d3dd40f791583d7611cbd3df1
-Implementation commit: 351331321f076b7f546fb6896e8237ca9c482413
-Recorded before final artifact commit; working tree clean.

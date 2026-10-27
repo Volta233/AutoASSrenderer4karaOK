@@ -1,3 +1,0 @@
-tests/test_inline_realign_render_refresh_patch_20260729.py
-scripts/demo/rerender_inline_realign_from_cache.py
-docs/sessions/20260729_render_refresh_old_cache.md

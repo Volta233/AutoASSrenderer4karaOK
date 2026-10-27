@@ -1,9 +1,0 @@
-# Versions explicitly recorded by the 2026-07-19 server smoke.
-# This is evidence, not a complete lock file.
-torch==2.8.0
-huggingface_hub==1.24.0
-soundfile==0.14.0
-
-# The server recorded Transformers 5.15.0.dev0 installed from source, but the
-# source commit was not captured. Run scripts/environment/capture_environment.py
-# and pin the returned direct_url.vcs_info.commit_id before claiming exact reproduction.

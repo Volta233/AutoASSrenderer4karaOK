@@ -1,0 +1,58 @@
+"""Shared algorithm identity and engineering thresholds (not probabilities)."""
+
+PROFILE = "asr_fine_blocks_v2"
+
+
+RELAXATION_RULES = (
+    dict(
+        endpoint_chars=2,
+        boundary_difference=0.9,
+        minimum_gap=0.12,
+        context_coverage=0.65,
+        context_line_coverage=0.35,
+        repeat_line_coverage=0.25,
+        context_span_floor=25,
+        context_seconds_per_char=0.8,
+        max_missing_context_lines=0,
+        sentence_coverage=0.9,
+        sentence_similarity=0.88,
+        sentence_difference=0.6,
+        sentence_min_zh=6,
+        sentence_min_en=12,
+        sentence_requires_prefix=True,
+    ),
+    dict(
+        endpoint_chars=1,
+        boundary_difference=1.2,
+        minimum_gap=0.08,
+        context_coverage=0.55,
+        context_line_coverage=0.25,
+        repeat_line_coverage=0.25,
+        context_span_floor=30,
+        context_seconds_per_char=1.0,
+        max_missing_context_lines=0,
+        sentence_coverage=0.8,
+        sentence_similarity=0.8,
+        sentence_difference=0.9,
+        sentence_min_zh=6,
+        sentence_min_en=12,
+        sentence_requires_prefix=True,
+    ),
+    dict(
+        endpoint_chars=1,
+        boundary_difference=1.5,
+        minimum_gap=0.06,
+        context_coverage=0.5,
+        context_line_coverage=0.2,
+        repeat_line_coverage=0.2,
+        context_span_floor=35,
+        context_seconds_per_char=1.2,
+        max_missing_context_lines=1,
+        sentence_coverage=0.65,
+        sentence_similarity=0.7,
+        sentence_difference=1.2,
+        sentence_min_zh=6,
+        sentence_min_en=12,
+        sentence_requires_prefix=False,
+    ),
+)

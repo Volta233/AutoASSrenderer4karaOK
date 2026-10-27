@@ -1,5 +1,0 @@
-{
-  "step": 750,
-  "checkpoint": "/home/hyan/Data/lyricalign/runs/20260724_qwen_fa_r2_full_seed20260724/checkpoints/step-000750",
-  "song_macro_boundary_mae_sec": 0.04715958845875161
-}

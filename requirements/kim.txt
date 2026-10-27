@@ -1,0 +1,8 @@
+numpy>=1.26,<3
+soundfile>=0.12,<1
+ml_collections==1.1.0
+PyYAML>=6,<7
+beartype==0.22.9
+rotary-embedding-torch==0.9.1
+einops==0.8.2
+librosa==0.11.0

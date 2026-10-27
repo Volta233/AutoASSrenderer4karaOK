@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "assets": [
+    {
+      "name": "tifa-source.zip",
+      "url": "https://codeload.github.com/openvpi/TIFA/zip/614a277d2580efe5e4b84faf4c34753dbc5a062c",
+      "sha256": "88c2175b751955fff8419d37ecd62181dffe062b7520d076ef384b7c0848f929",
+      "target": "models/forced_alignment/sources/TIFA",
+      "strip": 1,
+      "kind": "zip"
+    },
+    {
+      "name": "kim-source.zip",
+      "url": "https://codeload.github.com/KimberleyJensen/Mel-Band-Roformer-Vocal-Model/zip/25f44ffb55ee3c301281bba21b2d6d311cb69ae2",
+      "sha256": "dea5b08f6b172b96163bf80b9c37f4a4b8e40ea9678e05267d26b7e5cd0fd5b7",
+      "target": "models/separation/sources/Kim",
+      "strip": 1,
+      "kind": "zip"
+    },
+    {
+      "name": "TIFA-1.0-ST.zip",
+      "url": "https://github.com/openvpi/TIFA/releases/download/v1.0.0/TIFA-1.0-ST.zip",
+      "sha256": "6da6832cd2cb981aae1ccc2d9330f8f7c085ce7977d1eb13bff63531d038a88b",
+      "target": "models/forced_alignment/tifa/TIFA-1.0-ST",
+      "strip": 1,
+      "kind": "zip"
+    },
+    {
+      "name": "unidic-3.1.0.zip",
+      "url": "https://cotonoha-dic.s3-ap-northeast-1.amazonaws.com/unidic-3.1.0.zip",
+      "sha256": "638718c4c63625ab300de4c92c67925d54c0e9e3830009eaa992f29819d59c43",
+      "target": "models/forced_alignment/tifa/resources/UniDic/unidic",
+      "strip": 1,
+      "kind": "zip"
+    },
+    {
+      "name": "ffmpeg-9.0.2.zip",
+      "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip",
+      "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+      "target": "tools/ffmpeg",
+      "strip": 1,
+      "kind": "zip"
+    },
+    {
+      "name": "Kim-MelBandRoformer.ckpt",
+      "url": "https://huggingface.co/KimberleyJSN/melbandroformer/resolve/ac9b0614ab3cd7f77219e18ba494dfd93956c348/MelBandRoformer.ckpt",
+      "sha256": "87201f4d31afb5bc79993230fc49446918425574db48c01c405e44f365c7559e",
+      "target": "models/separation/Kim/MelBandRoformer.ckpt",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-chat_template.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/chat_template.json",
+      "sha256": "75a8cfca24f00de72d796fbfed6858fc9614ef3dabd8696684cc3bc03a9c58ff",
+      "target": "models/Qwen3-ASR-1.7B/chat_template.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/config.json",
+      "sha256": "2e74a751548b8ad7d7526d29365ad8144c345d8b412b1152d25dc6698452712f",
+      "target": "models/Qwen3-ASR-1.7B/config.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-generation_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/generation_config.json",
+      "sha256": "1da527824d81e07118facff437e03f2e24a23311e3bdeb2368973fe77e5f275c",
+      "target": "models/Qwen3-ASR-1.7B/generation_config.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-merges.txt",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/merges.txt",
+      "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "target": "models/Qwen3-ASR-1.7B/merges.txt",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-model-00001-of-00002.safetensors",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/model-00001-of-00002.safetensors",
+      "sha256": "a4cd1f1a04d90b757dc7f7dd26254e69a013b19e80efe590a83c6a3bde8608d6",
+      "target": "models/Qwen3-ASR-1.7B/model-00001-of-00002.safetensors",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-model-00002-of-00002.safetensors",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/model-00002-of-00002.safetensors",
+      "sha256": "6e0b9d9e09e2e0238e7ef3cc8a484ab387e91b90f1900bedf88bc92d7929ccfc",
+      "target": "models/Qwen3-ASR-1.7B/model-00002-of-00002.safetensors",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-model.safetensors.index.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/model.safetensors.index.json",
+      "sha256": "f994739fe38e5210b9e3e8ce6c6307315e2ceac3cb630e7b7414d69dce520f60",
+      "target": "models/Qwen3-ASR-1.7B/model.safetensors.index.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-preprocessor_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/preprocessor_config.json",
+      "sha256": "45e120a4eda2c20c5d7f2ea9354e63536bf35e27aa573fb7cdf78017b378770d",
+      "target": "models/Qwen3-ASR-1.7B/preprocessor_config.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-tokenizer_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/tokenizer_config.json",
+      "sha256": "4942d005604266809309cabc9f4e9cb89ce855d59b14681fdc0e1cc62ea26c4c",
+      "target": "models/Qwen3-ASR-1.7B/tokenizer_config.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-vocab.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/vocab.json",
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+      "target": "models/Qwen3-ASR-1.7B/vocab.json",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-LICENSE",
+      "url": "https://raw.githubusercontent.com/QwenLM/Qwen3-ASR/7c6daf77a2421100f5fb066495372c00129d39ff/LICENSE",
+      "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655",
+      "target": "models/Qwen3-ASR-1.7B/LICENSE",
+      "kind": "file"
+    },
+    {
+      "name": "qwen-README.md",
+      "url": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/7278e1e70fe206f11671096ffdd38061171dd6e5/README.md",
+      "sha256": "5058416891bc47a2051557765997e8c42f8eb78a0e33c3e775bd17d4b0ba4d50",
+      "target": "models/Qwen3-ASR-1.7B/README.md",
+      "kind": "file"
+    }
+  ]
+}

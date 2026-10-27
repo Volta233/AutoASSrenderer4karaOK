@@ -1,5 +1,0 @@
-OS: Linux
-Python: 3.12.3
-ffmpeg: 4.4.2-0ubuntu0.22.04.1
-PyTorch/CUDA: not used by this data-preparation run
-Test command: PYTHONPATH=src pytest -q

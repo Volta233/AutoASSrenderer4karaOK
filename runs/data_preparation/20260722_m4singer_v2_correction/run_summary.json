@@ -1,5 +1,0 @@
-{
-  "supersedes": "20260722_vocal_contract_and_quality_v1",
-  "S4": {"status": "passed", "a_tier_records": 6051, "audio_status_ok": 6051, "sha256_included": true, "external_output": "/home/hyan/Data/lyricalign/derived/m4singer_vocal_inventory_v2"},
-  "S10_native_short": {"status": "raw_inference_completed", "validation_records": 966, "success": 966, "failed": 0, "external_output": "/home/hyan/Data/lyricalign/outputs/baseline/qwen_m4singer_native_short_v2"}
-}

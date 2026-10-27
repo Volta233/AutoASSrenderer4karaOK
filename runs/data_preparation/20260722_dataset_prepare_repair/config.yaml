@@ -1,8 +1,0 @@
-run_id: 20260722_dataset_prepare_repair
-m4singer_root: /home/hyan/Data/datasets/m4singer/raw/extracted/m4singer
-external_output: /home/hyan/Data/lyricalign/derived/20260722_dataset_prepare_repair
-split_seed: m4singer-v2-song-split
-validation_percent: 10
-synthetic_buckets_sec: [20, 30, 60, 180]
-synthetic_policy: same_singer_same_song_adjacent_no_repeat_one_formal_window_per_song
-mir1k_status: blocked_pending_retained_channel_definition_evidence

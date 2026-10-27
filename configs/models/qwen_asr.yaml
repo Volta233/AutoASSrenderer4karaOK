@@ -1,6 +1,0 @@
-model_id: qwen3_asr
-role: audio_to_lyrics_transcription_baseline
-status: optional_after_alignment_smoke
-protocol: closed_book
-notes:
-  - Do not provide song title, retrieved lyrics or oracle transcript in closed-book mode.

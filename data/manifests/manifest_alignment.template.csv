@@ -1,2 +1,0 @@
-dataset_id,item_id,audio_relpath,lyrics_relpath,annotation_relpath,language,annotation_level,duration_sec,split,annotation_source,content_hash,status,notes
-example,sample001,audio/sample001.wav,lyrics/sample001.txt,annotations/sample001.characters.json,zh,character,60.0,unassigned,to_verify,to_compute,raw,replace with real relative paths

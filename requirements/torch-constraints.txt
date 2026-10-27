@@ -1,0 +1,4 @@
+# Install torch/audio from the selected official CUDA wheels first.
+# Keep the pair stable when component dependencies are subsequently resolved.
+torch==2.11.0
+torchaudio==2.11.0

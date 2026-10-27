@@ -1,2 +1,0 @@
-Loading weights:   0%|          | 0/708 [00:00<?, ?it/s]Loading weights:  72%|███████▏  | 508/708 [00:00<00:00, 5021.20it/s]Loading weights: 100%|██████████| 708/708 [00:00<00:00, 6190.76it/s]
-[transformers] `use_return_dict` is deprecated! Use `return_dict` instead!

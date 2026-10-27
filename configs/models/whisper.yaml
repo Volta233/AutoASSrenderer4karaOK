@@ -1,6 +1,0 @@
-model_id: whisper
-role: audio_to_lyrics_transcription_baseline
-status: optional_after_alignment_smoke
-protocol: closed_book
-notes:
-  - Record model size and decoding parameters.

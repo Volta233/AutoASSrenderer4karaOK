@@ -1,1 +1,0 @@
- M scripts/training/run_full_r2_mir1k_ood_fixed_once.sh

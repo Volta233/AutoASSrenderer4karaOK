@@ -1,175 +1,53 @@
-# LyricAlignment
+# 映词 · LyriFrame Kim
 
-LyricAlignment 是一个面向歌曲字幕烧录的工具链：输入音频或 MV、歌词 TXT 和 Qwen Forced Aligner/R2 checkpoint，自动完成歌词时间轴生成，并输出带 KTV 高亮字幕的 MP4。
+歌曲歌词对齐与字幕视频制作工具，支持逐字高亮、双行字幕、时间轴编辑和 MP4 导出。
 
-当前最实用的入口是 GUI。研究实验、评测和 inline-realign 仍保留在仓库内，但普通成品生成优先使用 `scripts/gui/run_gui.sh` 或 `scripts/gui/run_gui.py`。
+处理流程：**Kim 提取人声 → Qwen3-ASR 识别短片段 → TIFA 定位和逐字对齐 → 生成字幕视频**。导出视频保留原视频音轨。
 
-## 快速开始
+## 安装与启动
 
-Windows 本机推荐使用 Git Bash 运行：
+1. 解压整个文件夹到本地，例如 `D:\LyriFrame-Kim`。不要直接在压缩包里运行。
+2. 安装 [Python 3.10–3.14（常规 64 位 CPython）](https://www.python.org/downloads/windows/)，安装时勾选 Python Launcher。电脑需要 NVIDIA 显卡及正常工作的驱动；本版使用 CUDA，不支持纯 CPU。
+3. 双击 **install.cmd**。它会优先通过国内镜像下载模型、词典和 FFmpeg，再安装运行环境，下载失败会自动换源。首次需要联网；请等待出现 `Installation complete`。
+4. 双击 **start.cmd**。浏览器会自动打开；没有打开时访问 <http://127.0.0.1:8768>。使用期间保留启动窗口。关闭浏览器后后台仍会处理；双击 **stop.cmd** 停止程序及模型子进程，也可以关闭启动窗口退出。未完成的任务会中断，已保存的数据保留。
 
-```bash
-cd /d/小玩具/纯K工具v004/LyricAlignment
-bash scripts/gui/run_gui.sh
-```
-
-也可以直接用 Python 启动：
+也可在 PowerShell 中执行：
 
 ```powershell
-cd D:\小玩具\纯K工具v004\LyricAlignment
-$env:PYTHONPATH = "src"
-D:\Anconda\envs\qwen312\python.exe scripts\gui\run_gui.py
+.\install.cmd
+.\start.cmd
 ```
 
-默认 GUI 启动脚本会使用：
+包内不带模型、视频、API 密钥或虚拟环境。模型等资源下载约 6 GB，Python/CUDA 依赖还会额外下载数 GB；建议预留 **40 GB 可用磁盘**。首次安装时间取决于网络。运行时间与显存需求受歌曲长度、显卡和模型影响，本版不保证固定速度或毫秒级精度。
 
-```text
-D:\Anconda\envs\qwen312\python.exe
-```
+Kim 和 Qwen ASR 默认优先从魔搭下载。临时网络失败会在每个来源最多重试 10 次，并保留下载断点。
 
-如果你的 Python 环境不在这个位置，可以覆盖：
+下载策略和官方源切换见 [安装与迁移](docs/SETUP.md)。UniDic 词典保留原下载站点；第三方镜像的可用性受网络及同步情况影响。
 
-```bash
-GUI_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
-LYRICALIGN_PIPELINE_PYTHON="D:/Anconda/envs/qwen312/python.exe" \
-bash scripts/gui/run_gui.sh
-```
+安装程序优先复用现有应用环境的 Python；首次安装自动查找兼容版本，也支持从 PATH 查找。可通过 `install.ps1 -Python <python.exe 路径>` 指定解释器。安装后的虚拟环境不能直接切换 Python 版本。
 
-## GUI 常用流程
+## 制作流程
 
-1. 选择 **音频 / MV**。
-2. 选择歌词 TXT，或把歌词粘贴到文本框。
-3. 选择输出目录。
-4. 保持默认预设 `default`：`R2 + vocal + windowed`。
-5. 首次建议点 **预览 dry-run**，确认命令和路径。
-6. 点击 **开始生成成品**。
-7. 成品通常位于：
+1. **选择视频**：上传 MV，填写歌名、歌手及语言。
+2. **确认歌词**：导入 TXT/LRC、粘贴歌词，或联网查找并选择正确版本。建议一句一行，保留重复副歌。歌词检索不需要 API Key。
+3. **歌词同步**：开始处理，检查时间轴。无法可靠定位的字词会标记为估算并保留滚动效果；可人工修订，不因部分缺词阻止导出。
+4. **导出视频**：调整字幕样式，生成 MP4，下载到自己的目录。成片名为 `歌名 - 歌手_KTV.mp4`；未填歌名时采用视频文件名，未填歌手时省略歌手。不同次导出分别保存，避免覆盖。
 
-```text
-<输出目录>/<歌曲名>/videos/individual/r2_vocal_windowed.mp4
-```
+联网找不到歌词时，直接导入或粘贴即可。确认的歌词和最终音频版本必须一致，现场版与录音室版不能混用。时间轴保留视频播放，便于检查字幕；不另行生成短片预览。
 
-GUI 详细说明见：
+## 故障处理
 
-```text
-docs/manual/gui_karaoke_tool.md
-```
+- **网络断开**：重新运行 `install.cmd`，已校验的模型会复用，大文件支持续传。不要删除整个文件夹。
+- **提示没有 Python**：安装 Python 3.10–3.14 的常规 64 位版本及 Launcher，然后重新运行。
+- **提示 CUDA/驱动不可用**：更新 NVIDIA 驱动，重启电脑，再运行安装。无需另外安装 CUDA Toolkit。详细驱动兼容性以安装的 PyTorch CUDA 版本为准。
+- **启动后提示组件缺失**：运行 `install.cmd` 修复；双击 `check.cmd` 可生成 `.runtime/doctor.json`。
+- **端口被占用**：先打开已启动的页面；确需第二个实例，可运行 `.\start.cmd -Port 8769`，停止该实例使用 `.\stop.cmd -Port 8769`。
+- **查词失败**：导入歌词继续。模型下载完成后，导入歌词的制作流程可以离线使用；联网查词仍需要网络。
 
-## 当前成品渲染行为
+## 数据与迁移
 
-- MV/视频输入：保持原视频画布尺寸，字幕直接覆盖在画面下半区，不再额外拼接底部黑条。
-- 音频输入：默认生成深色背景视频；如果在 GUI 中选择背景图，则使用该图片铺满画布。
-- 字幕布局：高亮行和未唱行都位于下半区，模拟常见 KTV/MV 字幕效果。
-- 字幕样式：使用 ASS/libass 渲染，支持 Aegisub 风格的描边与 `\kf` 高亮计时。
-- 颜色设置：GUI 提供调色盘按钮，不需要用户手写十六进制颜色。
-- 元信息标签：成品视频不再烧录左上角的 `Chinese · R2 · ...` 这类说明文字。
+迁移时将发布包解压到目标电脑，运行 `install.cmd` 安装运行环境与模型。虚拟环境 `.runtime/` 与安装路径关联，应在目标电脑重新创建。
 
-## 模型与 checkpoint
+制作任务保存在 `ktv_projects/`。迁移已有任务时，请单独备份并复制该目录。
 
-默认模型路径：
-
-```text
-models/hf/Qwen3-ForcedAligner-0.6B-hf
-```
-
-默认 R2 checkpoint 路径：
-
-```text
-models/R2checkpoint
-```
-
-R2 checkpoint 目录需要包含：
-
-```text
-models/R2checkpoint/
-  adapter/
-  checkpoint_identity.json
-  projector.pt
-  trainer_state.pt
-```
-
-如果 GUI 日志提示 `qwen3_asr` 不被 Transformers 识别，说明当前 Python 环境里的 Transformers 版本不兼容。需要在 GUI 选择的同一个 Python 环境里安装支持 Qwen Forced Aligner 的源码版 Transformers。
-
-## 字体与 Demucs
-
-中文默认字体优先尝试 `Noto Sans CJK SC`。Windows 本机没有该字体时，渲染器会尝试常见中文字体回退；GUI 里也可以直接填写：
-
-```text
-Microsoft YaHei
-```
-
-默认人声分离器为 Demucs：
-
-```text
-demucs==4.1.0
-model: htdemucs_ft
-mode: --two-stems vocals
-```
-
-本机推荐让 Demucs 安装在同一个 `qwen312` 环境中，避免 `EnvironmentLocationNotFound: ...\envs\demucs` 这类独立 conda 环境路径错误。确实使用独立环境时，在 GUI 的 **Demucs 命令** 中填写完整命令，例如：
-
-```text
-conda run -n demucs demucs
-```
-
-## CLI 入口
-
-GUI 底层调用同一个批处理入口：
-
-```powershell
-$env:PYTHONPATH = "src"
-python scripts\demo\run_qwen_fa_batch.py "D:\path\to\song.mp4" `
-  --lyrics "D:\path\to\lyrics.txt" `
-  --preset default `
-  --separator demucs `
-  --demucs-device cpu `
-  --render-audio source `
-  --output-dir "D:\path\to\outputs"
-```
-
-CLI 详细说明见：
-
-```text
-docs/manual/qwen_fa_batch_demo.md
-```
-
-## 目录结构
-
-| 路径 | 作用 |
-|---|---|
-| `src/lyricalign/` | 核心实现、GUI 命令封装、字幕渲染与对齐逻辑 |
-| `scripts/gui/` | GUI 启动脚本 |
-| `scripts/demo/` | 批处理、渲染、模型实验入口 |
-| `docs/manual/` | 面向使用者的手册 |
-| `models/` | 本地模型和 checkpoint 放置位置，不应提交大文件 |
-| `tests/` | 回归测试 |
-
-## 开发验证
-
-常用 focused 检查：
-
-```powershell
-cd D:\小玩具\纯K工具v004\LyricAlignment
-$env:PYTHONPATH = "src"
-python -m pytest -q tests/test_gui_command.py tests/test_qwen_fa_batch_demo.py
-python -m compileall -q src scripts tests
-```
-
-仓库仍包含 Qwen Forced Aligner、R0/R1/R2、inline-realign 和评测相关研究资料。研究入口请参考 `AGENTS.md`、`docs/status/` 和 `docs/sessions/`；普通用户生成成品视频优先阅读本 README 与 GUI 手册。
-
-## Windows clickable exe
-
-Build the no-terminal GUI launcher:
-
-```powershell
-python -m pip install -e .[gui-exe]
-python scripts\windows\build_gui_exe.py --clean
-```
-
-Then double-click:
-
-```text
-dist\LyricAlignmentGUI\LyricAlignmentGUI.exe
-```
-
-See `docs/manual/windows_gui_exe.md`.
+开发者见 [代码结构](docs/ARCHITECTURE.md)、[开发与 PR](CONTRIBUTING.md)、[测试范围](docs/VALIDATION.md)、[第三方组件](THIRD_PARTY.md)。

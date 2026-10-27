@@ -1,1 +1,0 @@
-scripts/smoke/run_qwen_forced_aligner_smoke.py --config configs/assets/smoke_samples.local.yaml

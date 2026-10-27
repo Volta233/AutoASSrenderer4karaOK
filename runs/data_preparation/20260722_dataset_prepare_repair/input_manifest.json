@@ -1,7 +1,0 @@
-{
-  "source_metadata": "/home/hyan/Data/datasets/m4singer/raw/extracted/m4singer/meta.json",
-  "output_manifest_path": "/home/hyan/Data/lyricalign/derived/20260722_dataset_prepare_repair/prepare/m4singer_manifest.jsonl",
-  "output_manifest_sha256": "17f3b56614ca07644d1fca491278e9370d68c8cc175d4a50ae83e9640a7fed12",
-  "output_manifest_records": 20896,
-  "complete": true
-}

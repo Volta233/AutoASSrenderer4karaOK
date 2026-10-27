@@ -1,7 +1,0 @@
-{
-  "stage": "r2",
-  "seed": 20260724,
-  "configured_max_steps": 1110,
-  "train_items": 0,
-  "validation_items": 0
-}
