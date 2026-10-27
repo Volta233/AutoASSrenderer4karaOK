@@ -26,6 +26,8 @@ def execute(projects, pid: str, action: str, payload: dict) -> None:
         projects, pid, action, payload, projects.get(pid), projects.folder(pid)
     )
     if action == "media" or not (context.folder / "media.json").exists():
+        if action == "media":
+            media.ensure_source_video(projects, context)
         projects.event(pid, "media", "提取原始完整音轨；生成波形并缓存")
         info = extract(context.project["video"], context.folder, projects.settings)
     else:

@@ -1,7 +1,37 @@
 """Media preparation and browser playback."""
 
-from ...media import browser_proxy
+from pathlib import Path
+
+from ...media import browser_proxy, still_video
 from .context import TaskContext
+
+
+def ensure_source_video(projects, context: TaskContext) -> None:
+    """Compose an audio/background-image project into a real video before extraction.
+
+    Everything after this point reads ``project["video"]`` as usual, so audio input
+    needs no separate branch in probing, alignment, playback or export.
+    """
+    source = context.project.get("media_source") or {}
+    if source.get("kind") != "audio_image":
+        return
+    target = Path(context.project["video"])
+    if target.is_file() and target.stat().st_size:
+        return
+    canvas = source.get("canvas") or (None, None)
+    projects.event(
+        context.pid,
+        "media",
+        "按背景图与音频合成视频画面；后续步骤与直接上传视频一致",
+    )
+    still_video(
+        source["audio"],
+        source["background"],
+        target,
+        projects.settings,
+        canvas[0],
+        canvas[1],
+    )
 
 
 def media(context: TaskContext) -> None:
