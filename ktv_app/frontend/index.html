@@ -37,6 +37,9 @@
             <button type="button" class="source-mode" data-source="audio_image" aria-pressed="false">
               音频 + 背景图
             </button>
+            <button type="button" class="source-mode" data-source="bilibili" aria-pressed="false">
+              B站视频链接
+            </button>
             <span id="sourceHint" class="muted">上传一个带画面的视频文件</span>
           </div>
           <p id="sourceCurrent" class="source-meta muted" hidden></p>
@@ -49,6 +52,15 @@
               <summary>使用本地路径</summary>
               <label>视频路径<input id="videoPath" placeholder="D:\歌曲\演唱.mp4" /></label>
             </details>
+          </div>
+          <div id="bilibiliSource" hidden>
+            <label class="video-picker"><strong>从 B站下载歌曲视频</strong>
+              <span class="muted">粘贴视频链接或 BV号；链接中的分P会一并保留</span>
+              <input id="bilibiliURL" type="text" aria-label="B站视频链接或 BV号"
+                placeholder="https://www.bilibili.com/video/BV18i421e7cJ/ 或 BV18i421e7cJ" />
+            </label>
+            <p class="source-note muted">下载公开可用的画面与原始音轨，完成素材准备后自动进入确认歌词。下载失败可点击「重新准备」。</p>
+            <p id="downloadStatus" class="source-meta muted" role="status" aria-live="polite"></p>
           </div>
           <div id="audioSource" hidden>
             <label class="video-picker"
