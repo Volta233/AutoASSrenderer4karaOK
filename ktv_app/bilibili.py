@@ -9,7 +9,7 @@ from .media import probe, run
 
 BVID = re.compile(r"BV[0-9A-Za-z]{10}")
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 Chrome/130 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
     "Referer": "https://www.bilibili.com/",
 }
 LIMIT = 512 * 1024 * 1024
@@ -41,7 +41,13 @@ def parse_link(value):
 
 
 def api_data(client, endpoint, **params):
+    params["from"] = "web"
     response = client.get("https://api.bilibili.com/" + endpoint, params=params)
+    if response.status_code in (403, 412, 429):
+        raise ValueError(
+            f"B站暂时限制了当前网络的访问（HTTP {response.status_code}），"
+            "请稍后点击「重新准备」，或下载后上传本地视频"
+        )
     response.raise_for_status()
     body = response.json()
     if body.get("code") != 0 or not isinstance(body.get("data"), dict):
