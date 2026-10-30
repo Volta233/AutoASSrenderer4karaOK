@@ -1,6 +1,6 @@
 [project]
 name = "lyriframe-kim"
-version = "1.3.5"
+version = "1.4.0"
 description = "Local lyric alignment and karaoke subtitle video workflow"
 requires-python = ">=3.10,<3.15"
 

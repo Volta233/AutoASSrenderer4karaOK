@@ -68,9 +68,11 @@ def main():
     run("E1 原始（21 行，末行被截断，无重复副歌）", base, rec)
 
     completed_last = "鲲鹏扶摇九万里"
-    e2 = ["冬雪语若柳絮飞"] + base[:20] + [
-        completed_last if t.startswith("鲲鹏扶摇") else t for t in base[20:]
-    ]
+    e2 = (
+        ["冬雪语若柳絮飞"]
+        + base[:20]
+        + [completed_last if t.startswith("鲲鹏扶摇") else t for t in base[20:]]
+    )
     run("E2 补首句 + 补全末行（22 行）", e2, rec)
 
     # 音频实际把主副歌整体重复了一遍，真实歌词文件应有这一段。

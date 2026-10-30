@@ -40,6 +40,7 @@ def main(project, run):
     s = {m["line_index"]: m for m in second}
     print(f"{'i':>3} {'line':<14} {'p1':<38} {'p2':<38}")
     for i, line in enumerate(lines):
+
         def cell(m):
             if not m:
                 return "MISSING"

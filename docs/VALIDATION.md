@@ -1,3 +1,17 @@
+# 1.4.0 验证记录（2026-10-30）
+
+本版为第一步新增第二个素材来源：直接粘贴 B 站视频链接或 BV 号下载。Kim → 双遍短窗口 Qwen3-ASR → TIFA 的推理、分块与补齐算法未改动，本次没有重新执行歌曲模型推理，也不据此宣称对齐精度变化。
+
+- 新增 `ktv_app/bilibili.py`：解析完整链接、短链与 BV 号，支持 `?p=` 指定分P；从 `api.bilibili.com` 取 DASH 流，优先 720p H.264 画面与 AAC 音轨；下载按次重试，失败后可用“重新准备”重来；合并素材复用既有的 `settings.tool("ffmpeg")`。
+- 下载接入既有准备任务（`backend/tasks/media.py`、`backend/app.py`、`backend/repository.py`），完成素材后直接进入确认歌词，后续同步与导出流程与上传视频一致；前端入口与文案见 `frontend/index.html`、`frontend/app.js`，README 补充操作说明。
+- 依赖清单未改动：`requirements.txt`、`requirements/*.json`、`pyproject.toml` 依赖段、`install.*`、`download-models.*` 均无差异。新代码只使用 `requirements.txt` 中已有的 `httpx` 与标准库，B 站下载复用的 FFmpeg 早已在 `requirements/assets.lock.json` 中，因此本版没有新增下载项，升级用户不需要重新下载模型。
+- 从 GitHub 远程全新克隆（无 `.env`、无 `models/`、无 `tools/`）验证：`scripts/check_release.py` 审计 145 个文件通过；`ktv_app` 全模块导入 0 失败；Python 3.11.9 完整测试 266 项通过、6 项跳过、0 失败，其中 B 站链路 15 项通过。裸克隆运行 `scripts/doctor.py` 仍按预期报告模型、工具与三个子环境缺失，提示走 `install.cmd` 与 `download-models.cmd`，与 1.3.5 行为一致。
+- 新增 `ACKNOWLEDGMENTS.md` 记录实际使用的模型、开源资源与协作者署名；`scripts/diag_cuts.py`、`scripts/exp_fengxi.py` 收录为切分问题的诊断与实验记录。
+
+本次只做离线验证：未联网实测真实视频下载到成片导出的端到端流程，B 站接口与风控变化需后续实测确认；未在另一台电脑重装模型，也未做界面人工视觉验收。
+
+---
+
 # 1.3.5 验证记录（2026-10-26）
 
 本版简化歌词确认与导出界面，Kim → 双遍短窗口 Qwen3-ASR → TIFA 的推理、分块与补齐算法保持原样，未重新执行歌曲模型推理，也不据本次检查宣称对齐精度改善。
