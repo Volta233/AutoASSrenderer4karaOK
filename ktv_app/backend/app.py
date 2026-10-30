@@ -70,6 +70,13 @@ class Lyrics(BaseModel):
     candidate: str | None = None
 
 
+class Bilibili(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    song: str = ""
+    artist: str = ""
+    language: str = Field(default="auto", pattern="^(auto|zh|ja|en)$")
+
+
 class Information(BaseModel):
     song: str = ""
     artist: str = ""
@@ -266,6 +273,17 @@ def create_app(settings=None):
             raise
         finally:
             await video.close()
+
+    @app.post("/api/bilibili")
+    def bilibili(body: Bilibili):
+        project = store.create(
+            None,
+            body.song,
+            body.artist,
+            body.language,
+            source={"kind": "bilibili", "url": body.url},
+        )
+        return store.get(project["id"])
 
     @app.get("/api/projects/{pid}")
     def get(pid: str):
