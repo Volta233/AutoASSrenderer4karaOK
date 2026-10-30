@@ -28,6 +28,7 @@ const stages = {
   created: '已创建',
   queued: '等待处理',
   media: '提取音频',
+  download: '下载 B站视频',
   media_ready: '音频就绪',
   search: '联网查询歌词',
   choose_lyrics: '等待确认歌词',
@@ -72,9 +73,12 @@ function setSourceMode(mode) {
   });
   $('videoSource').hidden = mode !== 'video';
   $('audioSource').hidden = mode !== 'audio_image';
+  $('bilibiliSource').hidden = mode !== 'bilibili';
   $('sourceHint').textContent =
+    mode === 'bilibili' ? '下载视频后继续准备歌词' :
     mode === 'video' ? '上传一个带画面的视频文件' : '一段音频 + 一张背景图，先合成视频';
-  $('create').textContent = mode === 'video' ? '准备视频' : '合成视频并继续';
+  $('create').textContent = mode === 'bilibili' ? '下载视频并继续' :
+    mode === 'video' ? '准备视频' : '合成视频并继续';
 }
 
 function clearBackgroundPreview() {
@@ -86,6 +90,7 @@ function clearBackgroundPreview() {
 }
 
 function resetSourceInputs() {
+  $('bilibiliURL').value = '';
   $('videoFile').value = '';
   $('videoPath').value = '';
   $('audioFile').value = '';
@@ -202,9 +207,13 @@ function refreshSteps() {
       }`
     : '';
   const source = project?.media_source;
+  $('downloadStatus').textContent = source?.kind === 'bilibili'
+    ? project.error || (project.busy ? project.events.at(-1)?.message || '等待下载…' :
+      project.media ? '下载与素材准备已完成，可以确认歌词' : '点击下载视频并继续')
+    : '';
   $('sourceCurrent').hidden = !source;
   $('sourceCurrent').textContent = source
-    ? `当前素材：${source.kind === 'audio_image' ? '音频 + 背景图' : '视频'} · ${project.video_name || '未命名'}`
+    ? `当前素材：${source.kind === 'bilibili' ? 'B站视频' : source.kind === 'audio_image' ? '音频 + 背景图' : '视频'} · ${project.video_name || '未命名'}`
     : '';
   $('lyricsSummary').textContent = project?.lyrics?.length
     ? `已保存 ${project.lyrics.length} 行`
@@ -244,6 +253,10 @@ async function loadProject(pid) {
   resetSourceInputs();
   $('videoPath').value = project.media_source?.kind === 'audio_image' ? '' : project.video;
   if (project.media_source?.kind === 'audio_image') setSourceMode('audio_image');
+  if (project.media_source?.kind === 'bilibili') {
+    setSourceMode('bilibili');
+    $('bilibiliURL').value = project.media_source.url;
+  }
   if (project.media) $('video').src = playerSource(project);
   else $('video').removeAttribute('src');
   $('lyrics').value = (project.lyrics || project.timeline?.lines || [])
@@ -441,7 +454,13 @@ $('create').onclick = handler(async () => {
     const data = new FormData();
     for (const key of ['song', 'artist', 'language']) data.append(key, $(key).value);
     let p;
-    if (sourceMode === 'audio_image') {
+    if (sourceMode === 'bilibili') {
+      const url = $('bilibiliURL').value.trim();
+      if (!url) throw Error('请先输入 B站视频链接或 BV号');
+      p = await api('/bilibili', 'POST', {
+        url, song: $('song').value, artist: $('artist').value, language: $('language').value,
+      });
+    } else if (sourceMode === 'audio_image') {
       const audio = $('audioFile').files[0],
         background = $('backgroundFile').files[0];
       if (!audio) throw Error('请先选择音频文件');
@@ -584,7 +603,10 @@ async function poll() {
     const editing =
       $('workspace').contains(document.activeElement) &&
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+    const advanceToLyrics = currentStep === 1 && project.busy && !p.busy &&
+      !p.error && !!p.media && p.media_source?.kind === 'bilibili' && p.task === 'media';
     applyProject(p, changed);
+    if (advanceToLyrics) await showStep(2);
     if ($('saveState').textContent.startsWith('连接中断')) $('saveState').textContent = '已连接';
     if (!peaks && p.media) await loadWave();
     if (p.media && !$('video').getAttribute('src')) $('video').src = playerSource(p);

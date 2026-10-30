@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from ...media import browser_proxy, still_video
+from ...bilibili import download_video
 from .context import TaskContext
 
 
@@ -13,6 +14,14 @@ def ensure_source_video(projects, context: TaskContext) -> None:
     needs no separate branch in probing, alignment, playback or export.
     """
     source = context.project.get("media_source") or {}
+    if source.get("kind") == "bilibili":
+        download_video(
+            source,
+            context.folder,
+            projects.settings,
+            lambda message: projects.event(context.pid, "download", message),
+        )
+        return
     if source.get("kind") != "audio_image":
         return
     target = Path(context.project["video"])

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from ..media import AUDIO_SUFFIXES, IMAGE_SUFFIXES, VIDEO_SUFFIXES
 from ..timeline import Style
+from ..bilibili import parse_link
 from .storage import read_json, write_json
 
 
@@ -49,6 +50,35 @@ class ProjectRepository:
         if language not in ("auto", "zh", "ja", "en"):
             raise ValueError("语言必须是 auto/zh/ja/en")
         if source:
+            if source.get("kind") == "bilibili":
+                bvid, page = parse_link(source["url"])
+                pid = uuid.uuid4().hex
+                folder = self.root / pid
+                folder.mkdir()
+                value = {
+                    "id": pid,
+                    "song": song,
+                    "artist": artist,
+                    "language": language,
+                    "video": str(folder / "video.mp4"),
+                    "video_name": f"{bvid}-P{page}.mp4",
+                    "media_source": {
+                        "kind": "bilibili",
+                        "bvid": bvid,
+                        "page": page,
+                        "url": f"https://www.bilibili.com/video/{bvid}/?p={page}",
+                    },
+                    "created": time.time(),
+                    "stage": "created",
+                    "busy": False,
+                    "revision": 0,
+                    "events": [],
+                    "error": None,
+                    "style": Style().model_dump(),
+                    "artifacts": [],
+                }
+                write_json(folder / "project.json", value)
+                return value
             return self._create_audio_image(source, song, artist, language)
         video = Path(video).expanduser().resolve()
         if not video.is_file() or video.suffix.lower() not in VIDEO_SUFFIXES:
