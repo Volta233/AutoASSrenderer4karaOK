@@ -165,6 +165,10 @@ def test_dash_download_merges_and_validates_before_promoting(tmp_path, monkeypat
     monkeypatch.setattr(module, "api_data", data)
     monkeypatch.setattr(module, "download_stream", stream)
     monkeypatch.setattr(module, "run", lambda cmd: Path(cmd[-1]).write_bytes(b"merged"))
+    # 合拼只拼命令、不真的调用 FFmpeg，路径指向临时文件以免依赖本机安装。
+    fake_ffmpeg = tmp_path / "ffmpeg"
+    fake_ffmpeg.write_bytes(b"")
+    monkeypatch.setenv("KTV_FFMPEG", str(fake_ffmpeg))
     checked = []
     monkeypatch.setattr(module, "probe", lambda path, settings: checked.append(path))
     output = download_video(

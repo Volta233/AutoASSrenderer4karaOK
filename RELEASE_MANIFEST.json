@@ -3,7 +3,7 @@
   "project": "LyriFrame-Kim",
   "version": "1.4.0",
   "kind": "source",
-  "created_at": "2026-10-30T15:21:03.592937+00:00",
+  "created_at": "2026-10-31T05:56:00.010411+00:00",
   "python": "Python 3.10, 3.11, 3.12, 3.13, 3.14 (64-bit)",
   "default_device": "cuda",
   "cuda_required": true,
@@ -26,8 +26,8 @@
       "sha256": "36500da4ddb7eb7f1fc185ca3ae641bf765913506815a55d518298f807e54705"
     },
     ".github/workflows/tests.yml": {
-      "bytes": 680,
-      "sha256": "33a322aeb3a0cc423f764526b4f50607e5222ecb69ac5dd14a6419a59a508b74"
+      "bytes": 703,
+      "sha256": "3d34f1ffcf63b7d8987f575043109e42b486fc8627f25993b102c5704013d1b3"
     },
     ".gitignore": {
       "bytes": 447,
@@ -342,8 +342,8 @@
       "sha256": "f76a8c79bfde6805d1fb9d89bd9ee36030dd08334f7012ac73d25cb7235c305c"
     },
     "ktv_app/tests/test_application_boundaries.py": {
-      "bytes": 3719,
-      "sha256": "36b3905c3e29cc3b183e4fef2a2238a65fe8cca6243dfc1f83597dbe6ffc52fc"
+      "bytes": 3779,
+      "sha256": "558f985c2759cd08c1ef5bcd727afd4069cd8be4cffa8146a7f46c8901bf77b3"
     },
     "ktv_app/tests/test_asr_timing.py": {
       "bytes": 3894,
@@ -358,8 +358,8 @@
       "sha256": "2820faeef81ab0b3b6d0a47d6a6001bcbbb8fe6b97e1cbfacf913379b92e7d15"
     },
     "ktv_app/tests/test_bilibili.py": {
-      "bytes": 6242,
-      "sha256": "41a2527d5f02b39cbdf84c4ad8c50f37adeaa3a8982e2ad28aef09e50d7af31f"
+      "bytes": 6472,
+      "sha256": "4724c3edb824fceb3de53463e8658672faddc3090020327507a72b00e4fd01e1"
     },
     "ktv_app/tests/test_completion.py": {
       "bytes": 6824,

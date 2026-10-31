@@ -107,6 +107,8 @@ def test_launcher_refuses_an_occupied_port_without_starting_a_server():
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
         assert result.returncode != 0
