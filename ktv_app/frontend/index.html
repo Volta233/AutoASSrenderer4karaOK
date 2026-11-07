@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>映词 · LyriFrame</title>
-    <link rel="stylesheet" href="/style.css?v=release-1.4.0-audio" />
+    <link rel="stylesheet" href="/style.css?v=release-1.4.0-downloads" />
   </head>
   <body>
     <header class="app-header">
@@ -322,6 +322,19 @@
         <h2 id="settingsTitle">设置</h2>
         <button id="closeSettings" aria-label="关闭设置">完成</button>
       </div>
+      <section class="settings-content" aria-label="导出设置">
+        <h3>导出与保存</h3>
+        <label
+          >本地下载目录<input id="downloadDir" placeholder="例如 D:\歌曲\成品" />
+        </label>
+        <div class="row actions">
+          <button id="saveSettings" class="primary">保存</button
+          ><span id="settingsStatus" class="muted" role="status" aria-live="polite"></span>
+        </div>
+        <p class="muted">
+          成片会直接保存到这个文件夹，不需要再点击下载。留空时成片只保留在项目文件夹内。
+        </p>
+      </section>
       <section class="settings-content" aria-label="运行环境">
         <h3>映词 · LyriFrame <small>1.4.0</small></h3>
         <p id="health" class="muted">正在检查…</p>
@@ -329,6 +342,6 @@
         <p class="muted">关闭浏览器不会停止后台处理。退出程序请双击 stop.cmd，未完成的任务会中断。</p>
       </section>
     </dialog>
-    <script type="module" src="/app.js?v=release-1.4.0-bilibili"></script>
+    <script type="module" src="/app.js?v=release-1.4.0-downloads"></script>
   </body>
 </html>

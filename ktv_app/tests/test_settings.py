@@ -43,3 +43,10 @@ def test_relative_paths_and_existing_files_are_rejected(tmp_path):
         assert rejected.status_code == 400
         assert "文件" in rejected.json()["detail"]
         assert api.get("/api/settings").json()["download_dir"] == ""
+
+
+def test_settings_dialog_exposes_the_download_folder_field(tmp_path):
+    with client(tmp_path) as api:
+        page = api.get("/").text
+    for element in ("downloadDir", "saveSettings", "settingsStatus"):
+        assert f'id="{element}"' in page
