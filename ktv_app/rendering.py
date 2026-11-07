@@ -12,7 +12,6 @@ class RenderOptions(BaseModel):
     height: int | None = Field(default=None, ge=120, le=4320)
     crf: int = Field(default=20, ge=0, le=40)
     preset: str = Field(default="medium", pattern=r"^(ultrafast|fast|medium|slow)$")
-    output_dir: str = ""
 
     @model_validator(mode="after")
     def even_dimensions(self):

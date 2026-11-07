@@ -78,6 +78,57 @@ assert.equal(card.children.at(-1).children[0].textContent, '版本信息');
     assert result.returncode == 0, result.stderr
 
 
+def test_export_panel_reports_the_saved_path_without_a_download_link():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node is optional locally; CI installs it for frontend checks")
+    script = """
+import assert from 'node:assert/strict';
+class Element {
+  children = []; dataset = {}; textContent = '';
+  append(...nodes) { this.children.push(...nodes); }
+  replaceChildren(...nodes) { this.children = nodes; }
+}
+const elements = new Map();
+globalThis.document = {
+  getElementById(id) {
+    if (!elements.has(id)) elements.set(id, new Element());
+    return elements.get(id);
+  },
+  createElement(tag) { return Object.assign(new Element(), { tag }); },
+};
+const { renderArtifacts } = await import(MODULE_URL);
+const tags = (node) => [node.tag || 'root', ...(node.children || []).flatMap(tags)];
+renderArtifacts({id: 'p1', artifacts: [{
+  kind: 'export', path: 'renders/r1/a_KTV.mp4', bundle: 'renders/r1',
+  saved: 'D:/成品/a_KTV.mp4', save_error: null,
+  report: {rendered_lines: 2, total_lines: 3, unmatched_lines: 1},
+}]});
+const box = elements.get('artifacts');
+assert.match(box.children[0].children[0].textContent, /D:\\/成品\\/a_KTV\\.mp4/);
+assert.match(box.children[0].children[1].textContent, /2\\/3 行字幕/);
+assert.ok(!tags(box.children[0]).includes('a'), 'no manual download link');
+renderArtifacts({id: 'p2', artifacts: [{
+  kind: 'export', path: 'renders/r1/a.mp4', bundle: 'renders/r1', saved: null,
+  save_error: null,
+}]});
+assert.match(box.children[0].children[0].textContent, /保存在项目文件夹/);
+renderArtifacts({id: 'p3', artifacts: [{
+  kind: 'export', path: 'renders/r1/a.mp4', bundle: 'renders/r1', saved: null,
+  save_error: '未能保存到下载目录：拒绝访问',
+}]});
+assert.match(box.children[0].children[1].textContent, /下载目录/);
+""".replace("MODULE_URL", json.dumps((FRONTEND / "project-views.js").as_uri()))
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_page_serves_all_explicit_module_dependencies(tmp_path):
     with TestClient(create_app(Settings(projects=tmp_path / "projects"))) as client:
         page = client.get("/")

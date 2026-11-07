@@ -33,3 +33,8 @@ def test_filename_is_bounded_and_cannot_escape_export_folder(tmp_path):
 def test_removed_preview_parameters_are_not_silently_accepted():
     with pytest.raises(ValidationError):
         RenderOptions(preview_start=10, preview_duration=20)
+
+
+def test_export_folder_is_a_saved_setting_not_a_render_option():
+    with pytest.raises(ValidationError):
+        RenderOptions(output_dir="D:/成品")

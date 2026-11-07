@@ -107,14 +107,6 @@ def export(context: TaskContext) -> None:
             p["song"], p["artist"], p.get("video_name") or p["video"]
         ),
     )
-    exported = None
-    if options.output_dir:
-        output = (
-            Path(options.output_dir).expanduser().resolve()
-            / f"{target.stem}_{bundle.name}"
-        )
-        shutil.copytree(bundle, output)
-        exported = str(output)
     download = projects.preferences.download_dir()
     saved, save_error = deliver(target, download) if download else (None, None)
     current = projects.get(pid)
@@ -124,7 +116,6 @@ def export(context: TaskContext) -> None:
             "path": target.relative_to(folder).as_posix(),
             "bundle": bundle.relative_to(folder).as_posix(),
             "revision": timeline.revision,
-            "exported": exported,
             "saved": saved,
             "save_error": save_error,
             "report": export_report,

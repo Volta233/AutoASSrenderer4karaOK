@@ -178,7 +178,7 @@ function applyProject(p, refresh = true) {
   }
   renderAlignmentStatus(project, timeline);
   renderCandidates(project, { flush, applyProject });
-  renderArtifacts(project, fileURL);
+  renderArtifacts(project);
   refreshSteps();
   if (timeline) $('timelineDownload').href = fileURL('timeline.json');
 }
@@ -565,7 +565,6 @@ function renderOptions() {
   const options = {
     crf: Number($('crf').value),
     preset: $('preset').value,
-    output_dir: $('outputDir').value,
   };
   if ($('resolution').value) {
     [options.width, options.height] = $('resolution').value.split('x').map(Number);

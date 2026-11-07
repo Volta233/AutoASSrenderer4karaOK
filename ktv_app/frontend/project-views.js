@@ -194,7 +194,7 @@ export function renderCandidates(project, { flush, applyProject }) {
   }
 }
 
-export function renderArtifacts(project, fileURL) {
+export function renderArtifacts(project) {
   const key = JSON.stringify([project.id, project.artifacts]);
   const box = $('artifacts');
   if (key === box.dataset.signature) return;
@@ -204,39 +204,33 @@ export function renderArtifacts(project, fileURL) {
     const div = document.createElement('div');
     div.className = 'artifact';
     const label = document.createElement('p');
-    label.textContent = `视频已导出${a.exported ? ' · ' + a.exported : ''}`;
+    label.textContent = a.saved
+      ? `成片已保存到 ${a.saved}`
+      : a.save_error
+        ? '成片已渲染，但未能写入下载目录'
+        : '成片已渲染，保存在项目文件夹';
     div.append(label);
+    if (a.save_error) {
+      const warning = document.createElement('p');
+      warning.className = 'flag';
+      warning.textContent = a.save_error;
+      div.append(warning);
+    } else if (!a.saved) {
+      const hint = document.createElement('p');
+      hint.className = 'muted';
+      hint.textContent = '在「设置」里填写本地下载目录后，导出会直接保存到该文件夹。';
+      div.append(hint);
+    }
     if (a.report) {
       const note = document.createElement('p');
       note.className = 'muted';
       note.textContent = `${a.report.rendered_lines}/${a.report.total_lines} 行字幕 · ${a.report.estimated_lines || 0} 行含估算 · ${a.report.unmatched_lines} 行未定位${a.report.no_timed_subtitles ? ' · 无已定位字幕' : ''}`;
       div.append(note);
     }
-    const extra = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = '字幕与项目文件';
-    extra.append(summary);
-    for (const [index, [name, path]] of [
-      ['下载视频', a.path],
-      ['ASS', a.bundle + '/lyrics.ass'],
-      ['逐字 JSON', a.bundle + '/timeline.json'],
-      ['增强 LRC', a.bundle + '/lyrics.lrc'],
-      ['原始歌词', a.bundle + '/lyrics.original.txt'],
-      ['流程记录', a.bundle + '/project.json'],
-      ['完整歌词', a.bundle + '/lyrics.full.txt'],
-      ['未匹配清单', a.bundle + '/unmatched.json'],
-      ['导出说明', a.bundle + '/export_report.json'],
-      ...(a.report?.auto_complete !== undefined
-        ? [['估算时间清单', a.bundle + '/estimated.json']]
-        : []),
-    ].entries()) {
-      const link = document.createElement('a');
-      link.textContent = name;
-      link.href = fileURL(path);
-      link.download = path.split('/').at(-1);
-      (index === 0 ? div : extra).append(link);
-    }
-    div.append(extra);
+    const bundle = document.createElement('p');
+    bundle.className = 'muted';
+    bundle.textContent = `字幕与项目文件：${a.bundle}`;
+    div.append(bundle);
     box.append(div);
   }
 }
