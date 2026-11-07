@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from ..config import Settings
 from .. import APP_NAME, __version__
+from ..folder_picker import pick_directory
 from ..media import AUDIO_SUFFIXES, IMAGE_SUFFIXES, VIDEO_SUFFIXES
 from ..timeline import Timeline, Style, quality
 from .service import Projects
@@ -209,6 +210,12 @@ def create_app(settings=None):
     @app.put("/api/settings")
     def write_settings(body: AppSettings):
         return store.preferences.save(download_dir=body.download_dir)
+
+    @app.post("/api/settings/directory")
+    def choose_directory():
+        """Open the desktop folder dialog; the value is only saved after the user confirms."""
+        current = store.preferences.read()["download_dir"]
+        return {"download_dir": pick_directory("选择成片下载目录", current)}
 
     @app.get("/api/projects")
     def list_projects():
