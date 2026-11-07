@@ -1,4 +1,4 @@
-"""Render a saved timeline snapshot and record its artifacts."""
+"""Render a saved timeline snapshot, record its artifacts and deliver the video."""
 
 import shutil
 import uuid
@@ -8,6 +8,32 @@ from ...subtitles import write_bundle
 from ...timeline import Line, Timeline, Style, quality
 from ..storage import read_json, write_json
 from .context import TaskContext
+
+
+def unique_path(directory, name):
+    """Keep earlier exports by numbering a repeated file name instead of overwriting."""
+    target = Path(directory) / name
+    index = 1
+    while target.exists():
+        index += 1
+        target = Path(directory) / f"{Path(name).stem} ({index}){Path(name).suffix}"
+    return target
+
+
+def deliver(source, directory):
+    """Copy the finished video into the configured download folder.
+
+    Returns the saved path and an optional failure message. A completed render is
+    never lost when the folder is unavailable: the copy inside the project folder
+    stays, and the caller reports why the download failed.
+    """
+    try:
+        Path(directory).mkdir(parents=True, exist_ok=True)
+        target = unique_path(directory, Path(source).name)
+        shutil.copyfile(source, target)
+        return str(target), None
+    except OSError as error:
+        return None, f"未能保存到下载目录：{error}"
 
 
 def export(context: TaskContext) -> None:
@@ -89,6 +115,8 @@ def export(context: TaskContext) -> None:
         )
         shutil.copytree(bundle, output)
         exported = str(output)
+    download = projects.preferences.download_dir()
+    saved, save_error = deliver(target, download) if download else (None, None)
     current = projects.get(pid)
     current["artifacts"].append(
         {
@@ -97,13 +125,18 @@ def export(context: TaskContext) -> None:
             "bundle": bundle.relative_to(folder).as_posix(),
             "revision": timeline.revision,
             "exported": exported,
+            "saved": saved,
+            "save_error": save_error,
             "report": export_report,
         }
     )
     projects.update(pid, artifacts=current["artifacts"])
-    projects.event(
-        pid,
-        "ready",
+    message = (
         "MP4、字幕、完整歌词和未匹配清单已导出"
-        + f"；显示 {export_report['rendered_lines']}/{export_report['total_lines']} 行，未匹配不阻止输出",
+        + f"；显示 {export_report['rendered_lines']}/{export_report['total_lines']} 行，未匹配不阻止输出"
     )
+    if saved:
+        message += f"；成片已保存到 {saved}"
+    elif save_error:
+        message += f"；{save_error}"
+    projects.event(pid, "ready", message)
