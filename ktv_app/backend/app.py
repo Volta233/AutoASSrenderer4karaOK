@@ -93,6 +93,10 @@ class Task(BaseModel):
     options: dict = Field(default_factory=dict)
 
 
+class AppSettings(BaseModel):
+    download_dir: str = Field(default="", max_length=1024)
+
+
 def create_app(settings=None):
     settings = settings or Settings()
     store = Projects(settings)
@@ -197,6 +201,14 @@ def create_app(settings=None):
                 )
             ),
         }
+
+    @app.get("/api/settings")
+    def read_settings():
+        return store.preferences.read()
+
+    @app.put("/api/settings")
+    def write_settings(body: AppSettings):
+        return store.preferences.save(download_dir=body.download_dir)
 
     @app.get("/api/projects")
     def list_projects():

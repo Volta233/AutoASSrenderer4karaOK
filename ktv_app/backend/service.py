@@ -10,6 +10,7 @@ from ..lyrics import candidate_evidence
 from ..text_normalization import clean_lyric_text
 from ..workflow import AlignmentOptions, steps
 from .editing import ProjectEditor
+from .preferences import Preferences
 from .repository import ProjectRepository
 from .storage import read_json, write_json
 from .tasks import execute
@@ -24,6 +25,7 @@ class Projects:
         self.repository = ProjectRepository(settings.projects, recover_interrupted)
         self.root = self.repository.root
         self.lock = self.repository.lock
+        self.preferences = Preferences(self.root / "preferences.json")
         self.editor = ProjectEditor(self)
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ktv")
 
