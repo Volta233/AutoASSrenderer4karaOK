@@ -129,6 +129,56 @@ assert.match(box.children[0].children[1].textContent, /下载目录/);
     assert result.returncode == 0, result.stderr
 
 
+def test_settings_picker_fills_the_chosen_folder_and_keeps_it_on_cancel():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node is optional locally; CI installs it for frontend checks")
+    script = """
+import assert from 'node:assert/strict';
+class Element {
+  children = []; dataset = {}; textContent = ''; value = ''; disabled = false; style = {};
+  append(...nodes) { this.children.push(...nodes); }
+  replaceChildren(...nodes) { this.children = nodes; }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
+}
+const elements = new Map();
+globalThis.document = {
+  getElementById(id) {
+    if (!elements.has(id)) elements.set(id, new Element());
+    return elements.get(id);
+  },
+  createElement(tag) { return Object.assign(new Element(), { tag }); },
+};
+const chosen = 'D:/成品/KTV';
+let pick = chosen;
+globalThis.fetch = async (path) => ({
+  ok: true,
+  json: async () =>
+    path === '/api/settings/directory' ? {download_dir: pick}
+      : path === '/api/health' ? {checks: {}}
+      : {download_dir: ''},
+});
+const { initSettings } = await import(MODULE_URL);
+await initSettings({ onHealth: () => {} });
+await elements.get('pickDownloadDir').onclick();
+assert.equal(elements.get('downloadDir').value, chosen);
+assert.match(elements.get('settingsStatus').textContent, /保存/);
+pick = null;
+await elements.get('pickDownloadDir').onclick();
+assert.equal(elements.get('downloadDir').value, chosen, 'cancel keeps the field');
+assert.equal(elements.get('pickDownloadDir').disabled, false);
+""".replace("MODULE_URL", json.dumps((FRONTEND / "settings.js").as_uri()))
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_page_serves_all_explicit_module_dependencies(tmp_path):
     with TestClient(create_app(Settings(projects=tmp_path / "projects"))) as client:
         page = client.get("/")

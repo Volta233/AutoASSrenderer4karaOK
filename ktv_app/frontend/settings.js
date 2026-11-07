@@ -23,6 +23,22 @@ export async function initSettings({ onHealth }) {
     load();
   };
   $('closeSettings').onclick = () => dialog.close();
+  $('pickDownloadDir').onclick = handler(async () => {
+    const button = $('pickDownloadDir');
+    button.disabled = true;
+    $('settingsStatus').textContent = '请在桌面弹出的窗口里选择文件夹…';
+    try {
+      const picked = await api('/settings/directory', 'POST');
+      if (!picked.download_dir) {
+        showStatus($('downloadDir').value);
+        return;
+      }
+      $('downloadDir').value = picked.download_dir;
+      $('settingsStatus').textContent = '已填入所选目录，点「保存」后生效';
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('saveSettings').onclick = handler(async () => {
     const saved = await api('/settings', 'PUT', {
       download_dir: $('downloadDir').value,

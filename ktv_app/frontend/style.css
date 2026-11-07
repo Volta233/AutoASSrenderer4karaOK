@@ -670,6 +670,13 @@ pre {
 .settings-content h3 {
   margin: 0 0 16px;
 }
+.path-row {
+  margin-top: 7px;
+  flex-wrap: nowrap;
+}
+.path-row input {
+  flex: 1;
+}
 @media (max-width: 1000px) {
   .editorgrid {
     grid-template-columns: 1fr;

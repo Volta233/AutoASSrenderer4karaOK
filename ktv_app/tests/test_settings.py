@@ -30,18 +30,20 @@ def test_clearing_the_download_folder_keeps_videos_inside_the_project(tmp_path):
     with client(tmp_path) as api:
         assert api.get("/api/settings").json()["download_dir"] == ""
         api.put("/api/settings", json={"download_dir": str(tmp_path / "成品")})
-        assert api.put("/api/settings", json={"download_dir": "  "}).json()[
-            "download_dir"
-        ] == ""
+        assert (
+            api.put("/api/settings", json={"download_dir": "  "}).json()["download_dir"]
+            == ""
+        )
 
 
 def test_relative_paths_and_existing_files_are_rejected(tmp_path):
     file = tmp_path / "video.mp4"
     file.write_bytes(b"not a folder")
     with client(tmp_path) as api:
-        assert api.put(
-            "/api/settings", json={"download_dir": "成品/导出"}
-        ).status_code == 400
+        assert (
+            api.put("/api/settings", json={"download_dir": "成品/导出"}).status_code
+            == 400
+        )
         rejected = api.put("/api/settings", json={"download_dir": str(file)})
         assert rejected.status_code == 400
         assert "文件" in rejected.json()["detail"]
@@ -51,7 +53,7 @@ def test_relative_paths_and_existing_files_are_rejected(tmp_path):
 def test_settings_dialog_exposes_the_download_folder_field(tmp_path):
     with client(tmp_path) as api:
         page = api.get("/").text
-    for element in ("downloadDir", "saveSettings", "settingsStatus"):
+    for element in ("downloadDir", "pickDownloadDir", "saveSettings", "settingsStatus"):
         assert f'id="{element}"' in page
 
 

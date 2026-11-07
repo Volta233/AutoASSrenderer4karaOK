@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>映词 · LyriFrame</title>
-    <link rel="stylesheet" href="/style.css?v=release-1.4.0-downloads" />
+    <link rel="stylesheet" href="/style.css?v=release-1.4.0-picker" />
   </head>
   <body>
     <header class="app-header">
@@ -324,9 +324,15 @@
       </div>
       <section class="settings-content" aria-label="导出设置">
         <h3>导出与保存</h3>
-        <label
-          >本地下载目录<input id="downloadDir" placeholder="例如 D:\歌曲\成品" />
-        </label>
+        <label for="downloadDir">本地下载目录</label>
+        <div class="row path-row">
+          <input id="downloadDir" placeholder="点「选择目录」或直接粘贴路径" /><button
+            type="button"
+            id="pickDownloadDir"
+          >
+            选择目录…
+          </button>
+        </div>
         <div class="row actions">
           <button id="saveSettings" class="primary">保存</button
           ><span id="settingsStatus" class="muted" role="status" aria-live="polite"></span>
@@ -342,6 +348,6 @@
         <p class="muted">关闭浏览器不会停止后台处理。退出程序请双击 stop.cmd，未完成的任务会中断。</p>
       </section>
     </dialog>
-    <script type="module" src="/app.js?v=release-1.4.0-downloads"></script>
+    <script type="module" src="/app.js?v=release-1.4.0-picker"></script>
   </body>
 </html>
