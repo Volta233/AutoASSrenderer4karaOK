@@ -79,7 +79,9 @@ def export_once(tmp_path, monkeypatch, download_dir=""):
     return store, pid, name
 
 
-def test_export_writes_the_finished_video_into_the_download_folder(tmp_path, monkeypatch):
+def test_export_writes_the_finished_video_into_the_download_folder(
+    tmp_path, monkeypatch
+):
     folder = tmp_path / "成品"
     store, pid, name = export_once(tmp_path, monkeypatch, folder)
     try:
