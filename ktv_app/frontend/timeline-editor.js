@@ -17,6 +17,27 @@ const flags = {
   alignment_failed: '本行暂未定位，可继续输出',
 };
 
+// Mirrors the server-side Timeline.bounds check so an illegal intermediate
+// edit never reaches the API (which would answer 422 and stall autosave).
+export function timelineProblem(timeline) {
+  for (const line of timeline?.lines || []) {
+    for (const item of [line, ...line.units]) {
+      const a = item.start,
+        b = item.end;
+      if ((a === null) !== (b === null))
+        return `「${item.text}」的开始和结束需要同时填写`;
+      if (a === null) continue;
+      if (!(Number.isFinite(a) && Number.isFinite(b)))
+        return `「${item.text}」的时间不是有效数字`;
+      if (!(0 <= a && a < b && b <= timeline.duration + 0.02))
+        return `「${item.text}」的时间超出视频范围或开始晚于结束`;
+    }
+  }
+  return '';
+}
+
+const roundTime = (value) => Math.round(value * 1000) / 1000;
+
 export function createTimelineEditor({ getState, selectLine, markDirty, onTimingChange }) {
   function renderLines() {
     const { timeline, selected } = getState();
@@ -163,14 +184,28 @@ export function createTimelineEditor({ getState, selectLine, markDirty, onTiming
       ];
       tag.textContent = '已手动设置整行时间，可导出或再细对齐';
     } else {
-      valid[0].start = start;
-      valid.at(-1).end = end;
-      for (const u of [valid[0], valid.at(-1)]) {
+      // Stretch every word of the line into the new span. Moving only the first
+      // and last word used to leave middle words outside the range, which the
+      // API rejects (开始晚于结束) and which produced impossible sweeps.
+      const lengths = valid.map((u) => Math.max(0.005, u.end - u.start)),
+        total = lengths.reduce((sum, value) => sum + value, 0),
+        span = end - start,
+        scale = total > 0 ? span / total : 0,
+        step = Math.min(0.005, span / (valid.length * 2));
+      let cursor = start;
+      valid.forEach((u, index) => {
+        const last = index === valid.length - 1,
+          next = last
+            ? end
+            : Math.min(end, cursor + Math.max(step, lengths[index] * scale));
+        u.start = roundTime(cursor);
+        u.end = roundTime(last ? end : Math.max(u.start + step, next));
+        cursor = u.end;
         u.timing_source = 'manual';
         u.phones = [];
         u.readings = [];
-      }
-      tag.textContent = '已修改本行边界，可直接导出';
+      });
+      tag.textContent = `已把本行 ${valid.length} 个字按比例重排到新时段，可直接导出`;
     }
     line.start = start;
     line.end = end;
@@ -215,6 +250,12 @@ export function createTimelineEditor({ getState, selectLine, markDirty, onTiming
           u[name] = input.value === '' ? null : Number(input.value);
           u.phones = [];
           u.readings = [];
+          const problem = timelineProblem({ duration: timeline.duration, lines: [line] });
+          input.classList.toggle('invalid', Boolean(problem));
+          if (problem) {
+            notify(problem);
+            return;
+          }
           markDirty();
         };
         row.append(input);

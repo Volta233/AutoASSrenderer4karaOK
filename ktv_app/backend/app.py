@@ -20,6 +20,20 @@ MAX_AUDIO_MB = 200
 MAX_IMAGE_MB = 30
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """Always revalidate the bundled UI.
+
+    ``index.html`` carries no build number, so a heuristically cached page can be
+    paired with a newer script and leave the UI half wired. Revalidation is cheap
+    because Starlette answers with 304 while the ETag is unchanged.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 class Create(BaseModel):
     video: str
     song: str = ""
@@ -421,7 +435,7 @@ def create_app(settings=None):
 
     app.mount(
         "/",
-        StaticFiles(
+        NoCacheStaticFiles(
             directory=Path(__file__).resolve().parents[1] / "frontend", html=True
         ),
         name="frontend",

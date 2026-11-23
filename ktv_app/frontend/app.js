@@ -3,12 +3,36 @@ import { $, api, notify, handler } from './ui.js';
 import { overlayWindows } from './display-timing.js';
 import { initSettings } from './settings.js';
 import {
+  lyricKey,
   renderAlignmentStatus,
   renderCandidates,
   renderArtifacts,
   renderHealth,
 } from './project-views.js';
-import { createTimelineEditor } from './timeline-editor.js';
+import { createTimelineEditor, timelineProblem } from './timeline-editor.js';
+
+// A page cached from an older release pairs badly with a newer bundle: every
+// missing node would fail silently and leave the UI half wired. Say so instead.
+const REQUIRED_NODES = [
+  'projectList',
+  'create',
+  'lyricsSearch',
+  'lyricsManual',
+  'querySong',
+  'queryArtist',
+  'searchLyrics',
+  'adoptedLyrics',
+];
+const missingNodes = REQUIRED_NODES.filter((id) => !$(id));
+if (missingNodes.length) {
+  const banner = document.createElement('div');
+  banner.className = 'stale-banner';
+  banner.setAttribute('role', 'alert');
+  banner.textContent =
+    '这个页面是浏览器缓存里的旧版本，和当前脚本对不上。请按 Ctrl+F5（macOS 用 Cmd+Shift+R）强制刷新后再操作。';
+  document.body.prepend(banner);
+  throw new Error(`页面版本不匹配，缺少：${missingNodes.join('、')}`);
+}
 
 let currentStep = 1,
   locatorReady = false,
@@ -81,6 +105,42 @@ function setSourceMode(mode) {
     mode === 'video' ? '准备视频' : '合成视频并继续';
 }
 
+// Step two leads with the retrieved candidates; importing or pasting is the last option.
+function setLyricsSource(mode) {
+  document.querySelectorAll('[data-lyrics]').forEach((button) => {
+    const active = button.dataset.lyrics === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  $('lyricsSearch').hidden = mode !== 'search';
+  $('lyricsManual').hidden = mode !== 'manual';
+  $('lyricsHint').textContent =
+    mode === 'search'
+      ? '联网检索后从结果里挑一个最接近的版本'
+      : '导入或粘贴的歌词会直接用于对齐';
+}
+
+function renderLyricsSummary(p) {
+  const saved = (p?.lyrics || []).map((line) => line.text);
+  $('lyricsSummary').textContent = saved.length ? `已保存 ${saved.length} 行` : '尚未保存';
+  const box = $('adoptedLyrics');
+  box.hidden = !saved.length;
+  if (!saved.length) {
+    box.textContent = '';
+    return;
+  }
+  const chosen = lyricKey(saved.join('\n'));
+  const match = (p?.candidates?.candidates || []).find((c) => lyricKey(c.text) === chosen);
+  box.textContent = match
+    ? `当前歌词来自 ${match.provider || '检索结果'}：${match.song} · ${match.artist || '未知歌手'}，共 ${saved.length} 行。可换一个候选，或在「导入或自己粘贴」里修改后重新保存。`
+    : `当前歌词：已保存 ${saved.length} 行（自己导入、粘贴或修改过）。换候选会覆盖现有歌词。`;
+}
+
+function adoptLyrics(updated, candidate) {
+  $('lyrics').value = (updated.lyrics || []).map((line) => line.text).join('\n');
+  notify(`已采用「${candidate.song}」的歌词，可继续在导入或粘贴里修改`);
+}
+
 function clearBackgroundPreview() {
   if (backgroundURL) URL.revokeObjectURL(backgroundURL);
   backgroundURL = '';
@@ -109,6 +169,9 @@ function fileSize(bytes) {
 
 document.querySelectorAll('.source-mode').forEach((button) => {
   button.onclick = () => setSourceMode(button.dataset.source);
+});
+document.querySelectorAll('[data-lyrics]').forEach((button) => {
+  button.onclick = () => setLyricsSource(button.dataset.lyrics);
 });
 $('audioFile').onchange = () => {
   const file = $('audioFile').files[0];
@@ -177,7 +240,8 @@ function applyProject(p, refresh = true) {
     $('diagnostics').textContent = JSON.stringify(timeline?.diagnostics || {}, null, 2);
   }
   renderAlignmentStatus(project, timeline);
-  renderCandidates(project, { flush, applyProject });
+  renderCandidates(project, { flush, applyProject, onAdopt: adoptLyrics });
+  renderLyricsSummary(project);
   renderArtifacts(project);
   refreshSteps();
   if (timeline) $('timelineDownload').href = fileURL('timeline.json');
@@ -218,6 +282,9 @@ function refreshSteps() {
   $('lyricsSummary').textContent = project?.lyrics?.length
     ? `已保存 ${project.lyrics.length} 行`
     : '尚未保存';
+  $('searchLyrics').textContent =
+    project?.busy && project?.task === 'search' ? '正在检索…' : '搜索歌词';
+  $('searchLyrics').disabled = !!project?.busy;
   $('renderSnapshot').textContent = timeline
     ? `${timeline.lines.length} 行歌词 · 时间轴已保存`
     : '';
@@ -263,6 +330,9 @@ async function loadProject(pid) {
     .map((l) => l.text)
     .join('\n');
   for (const key of ['song', 'artist', 'language']) $(key).value = project[key];
+  $('querySong').value = project.song || '';
+  $('queryArtist').value = project.artist || '';
+  setLyricsSource('search');
   const opts = timeline?.diagnostics?.alignment_options || {};
   $('vocalStart').value = opts.vocal_start ?? '';
   $('vocalEnd').value = opts.vocal_end ?? '';
@@ -293,6 +363,12 @@ async function flush() {
     return flush();
   }
   if (!dirty || !timeline) return;
+  const problem = timelineProblem(timeline);
+  if (problem) {
+    $('saveState').textContent = `还没保存：${problem}`;
+    notify(problem);
+    return;
+  }
   const snapshot = structuredClone(timeline);
   dirty = false;
   saving = (async () => {
@@ -480,10 +556,12 @@ $('create').onclick = handler(async () => {
         language: $('language').value,
       });
     } else throw Error('请选择视频文件，或切换到「音频 + 背景图」');
+    // Submit the job before refreshing the surrounding views: a failed view
+    // update must not leave the project sitting at "created" with no task.
     await loadProject(p.id);
+    await task('media');
     await listProjects();
     await showStep(1);
-    await task('media');
   } finally {
     $('create').disabled = !!project?.busy;
   }
@@ -497,6 +575,32 @@ $('projectList').onchange = handler(async () => {
 document
   .querySelectorAll('[data-task]')
   .forEach((b) => (b.onclick = handler(() => task(b.dataset.task))));
+$('searchLyrics').onclick = handler(async () => {
+  if (!project) return;
+  const song = $('querySong').value.trim(),
+    artist = $('queryArtist').value.trim();
+  if (!song) throw Error('请先填写检索用的歌名');
+  await flush();
+  if (song !== project.song || artist !== project.artist) {
+    applyProject(
+      await api(`/workflows/${project.id}/information`, 'PUT', {
+        song,
+        artist,
+        language: project.language,
+      }),
+    );
+    $('song').value = song;
+    $('artist').value = artist;
+  }
+  await task('search');
+  notify('正在联网检索歌词，结果按原 MV 的时长比较');
+});
+for (const id of ['querySong', 'queryArtist'])
+  $(id).onkeydown = (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    $('searchLyrics').click();
+  };
 $('lyricsFile').onchange = handler(async () => {
   const file = $('lyricsFile').files[0];
   if (!file) return;
@@ -602,10 +706,15 @@ async function poll() {
     const editing =
       $('workspace').contains(document.activeElement) &&
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
-    const advanceToLyrics = currentStep === 1 && project.busy && !p.busy &&
-      !p.error && !!p.media && p.media_source?.kind === 'bilibili' && p.task === 'media';
+    // Any finished media preparation leads into the lyrics step: the button says
+    // "合成视频并继续", so a composed audio/image video advances like a download.
+    const advanceToLyrics =
+      currentStep === 1 && project.busy && !p.busy && !p.error && !!p.media && p.task === 'media';
     applyProject(p, changed);
-    if (advanceToLyrics) await showStep(2);
+    if (advanceToLyrics) {
+      await showStep(2);
+      notify('素材已就绪，请从候选歌词里挑一个版本，或导入自己粘贴');
+    }
     if ($('saveState').textContent.startsWith('连接中断')) $('saveState').textContent = '已连接';
     if (!peaks && p.media) await loadWave();
     if (p.media && !$('video').getAttribute('src')) $('video').src = playerSource(p);

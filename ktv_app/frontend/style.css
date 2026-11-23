@@ -124,6 +124,10 @@ input[type='range'] {
 input[type='file'] {
   font-size: 12px;
 }
+input.invalid {
+  border-color: #ff7676;
+  box-shadow: 0 0 0 1px rgb(255 118 118 / 35%);
+}
 input[type='file']::file-selector-button {
   padding: 6px 12px;
   margin-right: 12px;
@@ -412,12 +416,32 @@ details[open] > summary {
 #lyrics {
   margin-top: 16px;
 }
+.lyric-query {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+.lyric-query button {
+  padding: 10px 22px;
+  white-space: nowrap;
+}
+#lyricsSearch > .source-note {
+  margin-top: 12px;
+}
 #candidates:empty {
   display: none;
 }
 .candidate {
-  padding: 16px 0;
-  border-top: 1px solid var(--edge);
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--input);
+}
+.candidate.adopted {
+  border-color: var(--accent);
+  background: #241f17;
 }
 .candidate-header {
   display: flex;
@@ -425,10 +449,44 @@ details[open] > summary {
   justify-content: space-between;
   gap: 16px;
 }
+.candidate-header strong {
+  font-size: 15px;
+}
+.candidate-header .adopt {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+.candidate.adopted .adopt {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .candidate-meta {
   font-size: 12px;
   color: var(--muted);
-  margin: 5px 0 10px;
+  margin: 6px 0 0;
+}
+.candidate-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.candidate-actions {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-top: 10px;
+}
+.candidate-actions a {
+  font-size: 12px;
 }
 .candidate details {
   margin-top: 10px;
@@ -627,6 +685,16 @@ pre {
   max-height: 260px;
   overflow: auto;
 }
+.stale-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 12px 18px;
+  background: #5c3b14;
+  border-bottom: 1px solid #8a5c1f;
+  color: #ffe2b8;
+  font-size: 14px;
+}
 #notice {
   display: none;
   position: fixed;
@@ -725,6 +793,12 @@ pre {
   }
   .candidate-header {
     align-items: start;
+  }
+  .lyric-query {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lyric-query button {
+    width: 100%;
   }
   .file-picker {
     flex-wrap: wrap;

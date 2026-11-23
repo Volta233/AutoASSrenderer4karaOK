@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>映词 · LyriFrame</title>
-    <link rel="stylesheet" href="/style.css?v=release-1.4.0-picker" />
+    <link rel="stylesheet" href="/style.css?v=release-1.5.0" />
   </head>
   <body>
     <header class="app-header">
@@ -128,30 +128,50 @@
           </details>
         </section>
         <section id="step2" class="step-panel" hidden>
-          <div class="stepheading"><h2>确认歌词</h2></div>
+          <div class="stepheading">
+            <h2>确认歌词</h2>
+            <p class="muted">先从检索结果里挑一个与 MV 相同的版本；找不到再导入文件或自己粘贴。</p>
+          </div>
           <section class="card">
-            <div class="section-title">
-              <h3>查找歌词</h3>
-              <button data-task="search" class="primary">搜索歌词</button>
+            <div class="source-switch" role="group" aria-label="歌词来源">
+              <button type="button" class="source-mode active" data-lyrics="search" aria-pressed="true">
+                候选歌词
+              </button>
+              <button type="button" class="source-mode" data-lyrics="manual" aria-pressed="false">
+                导入或自己粘贴
+              </button>
+              <span id="lyricsHint" class="muted">联网检索后从结果里挑一个最接近的版本</span>
             </div>
-            <div id="candidates"></div>
-
-          </section>
-          <section class="card">
-            <div class="section-title">
-              <h3>歌词</h3>
-              <span id="lyricsSummary" class="muted" role="status"></span>
+            <div id="lyricsSearch">
+              <div class="lyric-query">
+                <label>检索歌名<input id="querySong" placeholder="默认用第一步填写的歌名" /></label>
+                <label>歌手<input id="queryArtist" placeholder="选填，能区分原唱与翻唱" /></label>
+                <button id="searchLyrics" class="primary">搜索歌词</button>
+              </div>
+              <p class="source-note muted">
+                改关键词会同步更新项目的歌名与歌手，再重新检索；每个候选都标出来源，点开可以看全文和来源页面。
+              </p>
+              <p id="adoptedLyrics" class="source-meta muted" hidden></p>
+              <div id="candidates"></div>
             </div>
-            <label class="file-picker"
-              >导入文件<input id="lyricsFile" type="file" accept=".txt,.lrc"
-            /></label>
-            <textarea
-              id="lyrics"
-              rows="12"
-              aria-label="歌词正文"
-              placeholder="粘贴歌词，每句一行"
-            ></textarea>
-            <div class="row actions"><button id="useLyrics" class="primary">保存歌词</button></div>
+            <div id="lyricsManual" hidden>
+              <p class="source-note muted">
+                联网没有合适版本时，导入 TXT/LRC 或直接把歌词贴进来；一句一行，保留重复副歌。
+              </p>
+              <label class="file-picker"
+                >导入文件<input id="lyricsFile" type="file" accept=".txt,.lrc"
+              /></label>
+              <textarea
+                id="lyrics"
+                rows="12"
+                aria-label="歌词正文"
+                placeholder="粘贴歌词，每句一行"
+              ></textarea>
+              <div class="row actions">
+                <button id="useLyrics" class="primary">保存歌词</button
+                ><span id="lyricsSummary" class="muted" role="status"></span>
+              </div>
+            </div>
           </section>
           <div class="stepfooter">
             <button data-next="1">← 上一步</button
@@ -342,12 +362,12 @@
         </p>
       </section>
       <section class="settings-content" aria-label="运行环境">
-        <h3>映词 · LyriFrame <small>1.4.0</small></h3>
+        <h3>映词 · LyriFrame <small>1.5.0</small></h3>
         <p id="health" class="muted">正在检查…</p>
         <p class="muted">项目与成片保存在本机 ktv_projects 文件夹。</p>
         <p class="muted">关闭浏览器不会停止后台处理。退出程序请双击 stop.cmd，未完成的任务会中断。</p>
       </section>
     </dialog>
-    <script type="module" src="/app.js?v=release-1.4.0-picker"></script>
+    <script type="module" src="/app.js?v=release-1.5.0"></script>
   </body>
 </html>

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "project": "LyriFrame-Kim",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "kind": "source",
-  "created_at": "2026-10-31T05:56:00.010411+00:00",
+  "created_at": "2026-11-23T12:34:30.514825+00:00",
   "python": "Python 3.10, 3.11, 3.12, 3.13, 3.14 (64-bit)",
   "default_device": "cuda",
   "cuda_required": true,
@@ -50,8 +50,8 @@
       "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
     },
     "README.md": {
-      "bytes": 5185,
-      "sha256": "32b3c4c44fb55dbfe69ab15b0fdcf37797b0342fe115047f070dd0022f3a7fac"
+      "bytes": 5647,
+      "sha256": "764c4d5b568222f43b23dd79f43ecf3801e9808cb9f03599af3305120bb12a25"
     },
     "THIRD_PARTY.md": {
       "bytes": 2067,
@@ -62,12 +62,12 @@
       "sha256": "e3f1ba37c51a059014fe1e9a59f35c72b1109a9d74b1b1003b7ab4b74c3befbb"
     },
     "docs/ARCHITECTURE.md": {
-      "bytes": 2481,
-      "sha256": "6dbfefe56ef1b8448f55914bd47215c4a2ffdfea6565d161249bd7e0cba66fb0"
+      "bytes": 3318,
+      "sha256": "eea2c4d02c5f12aa00a228cd6d8a385ab1e65f356d19f77338c131867773dbb1"
     },
     "docs/LYRICS.md": {
-      "bytes": 4335,
-      "sha256": "8c3b56cac827f035db6d60975b2047bb434f3bd040ea85410852d599633aa561"
+      "bytes": 4898,
+      "sha256": "199a4456b8ef7d0c5f5b5f27a4cffa7fc59e54995b090c0894352772aa254ac0"
     },
     "docs/PIPELINE.md": {
       "bytes": 965,
@@ -78,8 +78,8 @@
       "sha256": "0ac82fc36e9da71c3e9d182621013b74b2152dda1deb77a9895217b1b33386b9"
     },
     "docs/VALIDATION.md": {
-      "bytes": 14687,
-      "sha256": "204d33091e363a490377e3cc214536e9a2c07ad099ba1608d5791eb782e4a170"
+      "bytes": 17169,
+      "sha256": "ed581a8ef51821196e39270ebfe6eaa2de0f17bdef2a885bdcd59ff7b4b7ded7"
     },
     "download-models.cmd": {
       "bytes": 225,
@@ -99,7 +99,7 @@
     },
     "ktv_app/__init__.py": {
       "bytes": 128,
-      "sha256": "7747f39ca86c88460b3dd72592ceade4b5773632b9ee749b9e4cdcfb7502a6aa"
+      "sha256": "d61f3b4596e20e32077327274e449fd1c68ebf7cd6aa816d7c7627e73c29fbfa"
     },
     "ktv_app/aligners/__init__.py": {
       "bytes": 472,
@@ -174,20 +174,24 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "ktv_app/backend/app.py": {
-      "bytes": 14523,
-      "sha256": "10f2171aaed292e7ee02ddbc0b7be8113c884adc326ec691f74876aa7f785c60"
+      "bytes": 15720,
+      "sha256": "c0e98d5ac6713d274a0e3724406bf5de9e25c2dee58b9f56b9b7516a8fbd05ea"
     },
     "ktv_app/backend/editing.py": {
       "bytes": 5735,
       "sha256": "9daee4b96617c589b1ee3017e8688aa6f928f072405b701b980ce7b9aa30d37c"
+    },
+    "ktv_app/backend/preferences.py": {
+      "bytes": 1674,
+      "sha256": "28319c1283662ee479722c622f737ca2bbd163da811860aa619dcc8d98fdd171"
     },
     "ktv_app/backend/repository.py": {
       "bytes": 6364,
       "sha256": "fa7376a42fdc44a333272af7061cf63638490d1de9ada9685d9932c3ee2dbcf0"
     },
     "ktv_app/backend/service.py": {
-      "bytes": 6291,
-      "sha256": "77e33f27a8840554326732c44679a6f6536f78a03f18838465e10bb72f3f0f66"
+      "bytes": 6399,
+      "sha256": "a6f0816cb08096bfef05cdbbdf1d0f2d45a1ac2748304a423f0a94bc1440e425"
     },
     "ktv_app/backend/storage.py": {
       "bytes": 713,
@@ -210,8 +214,8 @@
       "sha256": "902d4805bb92b8f33f1b74dfe91e91f4f00ca9ecd6df40cd8a16aa67351f2681"
     },
     "ktv_app/backend/tasks/export.py": {
-      "bytes": 3565,
-      "sha256": "a586360d24129cbe1679006e1e158dfb547b7c68fdc5e265c5c6e73a55f846d5"
+      "bytes": 4576,
+      "sha256": "cd5f3b5bbbbdd43297137f1a86d265b2ec58145f42ca911fe1de88821e0cbc0c"
     },
     "ktv_app/backend/tasks/lyrics.py": {
       "bytes": 1208,
@@ -233,37 +237,41 @@
       "bytes": 3621,
       "sha256": "abaa1d1eef5f17fa65ccd290f3b10eacc3add37778792a17e58483319c440b1d"
     },
+    "ktv_app/folder_picker.py": {
+      "bytes": 3062,
+      "sha256": "ce79ff93f3c30aa9fa8edafaa9ed0d3b14ca15a2626cffda5f4e31466f703d89"
+    },
     "ktv_app/frontend/app.js": {
-      "bytes": 23157,
-      "sha256": "3eafdfd5fac2054f1a07250caeace8505b661d41208ebeddb810f0b616dc2ea5"
+      "bytes": 27505,
+      "sha256": "63e66023785cbe9cbcaf694b62cd11f3faa80df302a8762af2e8666876eabf0b"
     },
     "ktv_app/frontend/display-timing.js": {
       "bytes": 2992,
       "sha256": "78e5da35bf17056cfd1ebec3015cd0cdd45e74e3ffd54c48bf543d4a4b415e2c"
     },
     "ktv_app/frontend/index.html": {
-      "bytes": 15361,
-      "sha256": "323342eb0323dfb9eacfbfd6f515aff4aa7df61f0dace012f5df8d65d453ad6f"
+      "bytes": 17484,
+      "sha256": "0eddb1f24c2fd46eae27c84b6235f3fdbc778782bdc5805fddf9eb3483c68415"
     },
     "ktv_app/frontend/package.json": {
       "bytes": 42,
       "sha256": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8"
     },
     "ktv_app/frontend/project-views.js": {
-      "bytes": 10418,
-      "sha256": "e34399b0caec82c47900a6ed9e8f3ef3ee181bfdd22f42bd922f832ccbf6cc5f"
+      "bytes": 11732,
+      "sha256": "bd4403ae0d87bbf889955c04a8ce4962e69b16ebc5d9f22cd00bd66ee8605589"
     },
     "ktv_app/frontend/settings.js": {
-      "bytes": 338,
-      "sha256": "cecc013d9aece10e218b0770cb1af0118010dcfcd4e855aefdb32b7666288a72"
+      "bytes": 1842,
+      "sha256": "2ce4ad5607d3f4f14e7eff2c4f65696d35318dcb0c381ea4d2976f394cb0c936"
     },
     "ktv_app/frontend/style.css": {
-      "bytes": 12323,
-      "sha256": "a76e37e1c96f941947d3c63bd0d724b8c9d0744eeb36fc2f934de69072b02a3a"
+      "bytes": 13832,
+      "sha256": "c6e6b671993df6b8caacfc5a5aa43617de2da696e35a97138da94c9765dd972e"
     },
     "ktv_app/frontend/timeline-editor.js": {
-      "bytes": 8042,
-      "sha256": "666013a3863a565c1ad66894ae87fb5f0ffbbae14fdbcdee7a594ab0d18e5338"
+      "bytes": 9929,
+      "sha256": "fac14a7c65add4cc127ecfa1ac1655bc92044d73162a0db2847dfd855d16e4e2"
     },
     "ktv_app/frontend/ui.js": {
       "bytes": 921,
@@ -310,8 +318,8 @@
       "sha256": "8fd5e5e3818417b8a63e6d608b87bb39865203da732bb41ff32e0724511b00fa"
     },
     "ktv_app/rendering.py": {
-      "bytes": 2763,
-      "sha256": "f6b83baaadadf4ec2d64325ef549c415eff2853dd9c6ef7d5a6e8fc169e1c038"
+      "bytes": 2738,
+      "sha256": "f55d638b8522b0bb4186ba7162738238596633b893e603ea187dd2051fc18bf6"
     },
     "ktv_app/separation.py": {
       "bytes": 7379,
@@ -377,17 +385,21 @@
       "bytes": 5852,
       "sha256": "1867b4f2aacb4f9880255509b7b2b08d93953fa9d73ba873426b8fc5377710da"
     },
+    "ktv_app/tests/test_export_delivery.py": {
+      "bytes": 4074,
+      "sha256": "2bf7bdad1e28c2aa55f6f4acb8ac183e6e04740dc0a7436400513786b95d2659"
+    },
     "ktv_app/tests/test_export_names.py": {
-      "bytes": 1327,
-      "sha256": "ca120dbcd66f80b8dc97d342d40f6443809cdb8784ebaa62e008f938b75d4d4c"
+      "bytes": 1481,
+      "sha256": "928ba04c08285f18515eb4066dfc72c21b676bb9782fc6efd25c5e9aede5adef"
     },
     "ktv_app/tests/test_fixed_pipeline.py": {
       "bytes": 3479,
       "sha256": "c96069daba49447468d4836133c7f1f959f2bceaa476d6ed72920f6c23423c24"
     },
     "ktv_app/tests/test_frontend_modules.py": {
-      "bytes": 8245,
-      "sha256": "a56b3fc7e7e9b7c49f2e221969c583636de891e02add13faed14c678e7aedb12"
+      "bytes": 13694,
+      "sha256": "bf3c7094a1e95240fc0631daf0db7318707460acaeba0c212b5836bf9d1fcf38"
     },
     "ktv_app/tests/test_lifecycle.py": {
       "bytes": 6346,
@@ -437,6 +449,10 @@
       "bytes": 4927,
       "sha256": "e07cd08523e3f5f18ab7cfabd8905fa7b1b41515b5701f76a0fe839516a886ec"
     },
+    "ktv_app/tests/test_settings.py": {
+      "bytes": 4032,
+      "sha256": "8b6999f5b6a4570ac867ef8754befae6e0302d21b7557a1aa17de2e08c4d5f3b"
+    },
     "ktv_app/tests/test_steps.py": {
       "bytes": 8228,
       "sha256": "a648836700bb2303a5ae931ac44d4ee77477bd5bcbb2b48ecb6686f14cb961be"
@@ -467,7 +483,7 @@
     },
     "pyproject.toml": {
       "bytes": 434,
-      "sha256": "04927902637f936ff9e2bca8fafe2302f50c93702197fa0b3382ec40ba86c2c1"
+      "sha256": "03efbbc3f80c21ce5e3bfea649686b1d368ad580832494992734a3cd2636e9ce"
     },
     "requirements-dev.txt": {
       "bytes": 62,
@@ -586,8 +602,8 @@
       "sha256": "cfb3928e8522f7dbeb84c84d1c2ebc36a0a9022461abf7fa556cb950872ae491"
     },
     "使用指南.txt": {
-      "bytes": 1681,
-      "sha256": "4e6ccdeb5c44cdf7bafccdaa36935afaf81e9de83f545f39476e96150b59c11b"
+      "bytes": 2166,
+      "sha256": "9555c3afd4e6fa1d5ebc4e5510bcfc8e1fe2ce125e6164fcd0e89af2be69f2ee"
     }
   },
   "models_included": false,

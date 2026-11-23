@@ -40,9 +40,21 @@ export function renderAlignmentStatus(project, timeline) {
   box.textContent = status.join(' · ');
 }
 
-export function renderCandidates(project, { flush, applyProject }) {
+// Whitspace-insensitive text identity: adopted cards are recognised without a server round trip.
+export function lyricKey(text) {
+  return (text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+const ADVICE = { recommended: '建议优先试听', compare: '请确认演唱版本', review: '需核对差异' };
+
+export function renderCandidates(project, { flush, applyProject, onAdopt }) {
   const box = $('candidates');
-  const signature = JSON.stringify(project.candidates);
+  // Lyrics and busy state change the adopted highlight and the button state.
+  const signature = JSON.stringify([project.candidates, project.lyrics, project.busy]);
   if (box.dataset.signature === signature) return;
   box.dataset.signature = signature;
   box.replaceChildren();
@@ -108,6 +120,7 @@ export function renderCandidates(project, { flush, applyProject }) {
     }
     return;
   }
+  const chosen = lyricKey((project.lyrics || []).map((line) => line.text).join('\n'));
   let more;
   for (const [index, c] of project.candidates.candidates.entries()) {
     if (index === 3) {
@@ -117,56 +130,20 @@ export function renderCandidates(project, { flush, applyProject }) {
       more.append(summary);
       box.append(more);
     }
+    const adopted = Boolean(chosen) && lyricKey(c.text) === chosen;
     const div = document.createElement('div');
-    div.className = 'candidate';
-    const title = document.createElement('strong');
+    div.className = adopted ? 'candidate adopted' : 'candidate';
     const header = document.createElement('div');
     header.className = 'candidate-header';
-    const advice =
-      { recommended: '建议试听', compare: '确认版本', review: '核对差异' }[c.recommendation] ||
-      '确认版本';
+    const title = document.createElement('strong');
     title.textContent = `${c.song} · ${c.artist || '未知歌手'}`;
     const badge = document.createElement('span');
     badge.className = 'badge';
-    badge.textContent = advice;
+    badge.textContent = ADVICE[c.recommendation] || '请确认演唱版本';
     title.append(badge);
-    const src = document.createElement('a');
-    src.href = c.source;
-    src.target = '_blank';
-    src.rel = 'noopener';
-    src.textContent = c.provider || '查看来源';
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = '查看歌词';
-    const pre = document.createElement('pre');
-    pre.textContent = c.text;
-    details.append(summary, pre);
-    const metadata = document.createElement('p');
-    metadata.className = 'candidate-meta';
-    metadata.textContent = [c.album, c.duration ? `${c.duration} 秒` : '时长未知']
-      .filter(Boolean)
-      .join(' · ');
-    const warningsNode = document.createElement('div');
-    if (c.evidence) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      const e = c.evidence;
-      p.textContent = `名称相似度：歌名 ${(e.title_similarity * 100).toFixed(0)}% / 歌手 ${e.artist_similarity == null ? '未填写' : (e.artist_similarity * 100).toFixed(0) + '%'} · 时长差 ${e.duration_difference_seconds ?? '未知'} 秒 · ${c.content_languages?.length ? '检测语言 ' + c.content_languages.join(' / ') + ' · ' : ''}尚未比较实际演唱`;
-      warningsNode.append(p);
-    }
-    if (c.recommendation_reasons?.length) {
-      const note = document.createElement('p');
-      note.textContent = c.recommendation_reasons.join('；');
-      warningsNode.append(note);
-    }
-    for (const warning of c.warnings || []) {
-      const note = document.createElement('p');
-      note.className = 'flag';
-      note.textContent = warning;
-      warningsNode.append(note);
-    }
     const button = document.createElement('button');
-    button.textContent = '采用';
+    button.className = 'adopt';
+    button.textContent = adopted ? '已采用' : '采用';
     button.disabled = project.busy;
     button.onclick = handler(async () => {
       await flush();
@@ -174,14 +151,87 @@ export function renderCandidates(project, { flush, applyProject }) {
         candidate: c.id,
       });
       applyProject(updated);
-      $('lyrics').value = updated.lyrics.map((line) => line.text).join('\n');
-      notify('已采用歌词');
+      if (onAdopt) onAdopt(updated, c);
+      else notify('已采用歌词');
     });
     header.append(title, button);
+    const metadata = document.createElement('p');
+    metadata.className = 'candidate-meta';
+    metadata.textContent = [
+      c.provider || '未知来源',
+      c.duration ? `${c.duration} 秒` : '时长未知',
+      c.album,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const excerpt = document.createElement('p');
+    excerpt.className = 'candidate-excerpt';
+    excerpt.textContent = c.text
+      .split('\n')
+      .filter((line) => line.trim())
+      .slice(0, 2)
+      .join('\n');
+    const actions = document.createElement('div');
+    actions.className = 'candidate-actions';
+    let href = '';
+    try {
+      const url = new URL(c.source);
+      if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password)
+        href = url.href;
+    } catch {
+      href = '';
+    }
+    const lines = c.text.split('\n').filter((line) => line.trim()).length;
+    if (href) {
+      const src = document.createElement('a');
+      src.href = href;
+      src.target = '_blank';
+      src.rel = 'noopener noreferrer';
+      src.textContent = `查看来源 · ${c.provider || new URL(href).hostname}`;
+      actions.append(src);
+    }
+    const count = document.createElement('span');
+    count.className = 'muted';
+    count.textContent = `${lines} 行 · ${
+      c.evidence
+        ? `歌名相似度 ${(c.evidence.title_similarity * 100).toFixed(0)}% / 歌手 ${
+            c.evidence.artist_similarity == null
+              ? '未填写'
+              : (c.evidence.artist_similarity * 100).toFixed(0) + '%'
+          } · 时长差 ${c.evidence.duration_difference_seconds ?? '未知'} 秒`
+        : '尚无版本证据'
+    }`;
+    actions.append(count);
+    const full = document.createElement('details');
+    full.className = 'candidate-text';
+    const fullSummary = document.createElement('summary');
+    fullSummary.textContent = `预览全文（${lines} 行）`;
+    const pre = document.createElement('pre');
+    pre.textContent = c.text;
+    full.append(fullSummary, pre);
+    const notes = document.createElement('div');
+    if (c.content_languages?.length) {
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = `检测语言 ${c.content_languages.join(' / ')}；未比较实际演唱`;
+      notes.append(p);
+    }
+    if (c.recommendation_reasons?.length) {
+      const note = document.createElement('p');
+      note.textContent = c.recommendation_reasons.join('；');
+      notes.append(note);
+    }
+    for (const warning of c.warnings || []) {
+      const note = document.createElement('p');
+      note.className = 'flag';
+      note.textContent = warning;
+      notes.append(note);
+    }
     const comparison = document.createElement('details');
+    comparison.className = 'candidate-version';
     const comparisonTitle = document.createElement('summary');
     comparisonTitle.textContent = '版本信息';
-    comparison.append(comparisonTitle, src, warningsNode);
+    comparison.append(comparisonTitle, notes);
     div.append(header, metadata);
     if (c.requires_version_review) {
       const warning = document.createElement('p');
@@ -189,7 +239,7 @@ export function renderCandidates(project, { flush, applyProject }) {
       warning.textContent = '版本可能不同，请核对歌词。';
       div.append(warning);
     }
-    div.append(details, comparison);
+    div.append(excerpt, actions, full, comparison);
     (more || box).append(div);
   }
 }

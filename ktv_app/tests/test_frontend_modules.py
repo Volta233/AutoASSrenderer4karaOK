@@ -54,7 +54,7 @@ assert.equal(sources.tag, 'details');
 assert.equal(sources.children.length, 2);
 assert.equal(sources.children[1].children[0].href, 'https://example.com/lyrics');
 const candidate = {id:'1',song:'千本桜',artist:'初音ミク',score:1,provider:'网易云音乐',
- source:'https://music.163.com/song?id=1',text:'original',recommendation:'compare',
+ source:'https://music.163.com/song?id=1',text:'original\\nsecond line',recommendation:'compare',
  recommendation_reasons:['未填写歌手'],evidence:{title_similarity:1,artist_similarity:null}};
 renderCandidates({candidates:{actual_query_attempts:attempts,candidates:Array(5).fill(candidate)}}, {});
 assert.equal(box.children.filter(n => n.className === 'candidate').length, 3);
@@ -64,9 +64,22 @@ assert.equal(more.children.length, 3);
 assert.match(more.children[0].textContent, /更多版本（2）/);
 const card = box.children[1];
 assert.equal(card.children[0].children[0].textContent, '千本桜 · 初音ミク');
-assert.equal(card.children[0].children[0].children[0].textContent, '确认版本');
+assert.equal(card.children[0].children[0].children[0].textContent, '请确认演唱版本');
+assert.match(card.children[1].textContent, /网易云音乐/);
+assert.equal(card.children[2].className, 'candidate-excerpt');
+assert.match(card.children[2].textContent, /second line/);
+assert.equal(card.children[3].children[0].href, 'https://music.163.com/song?id=1');
+assert.equal(card.children[4].children[0].textContent, '预览全文（2 行）');
 assert.equal(card.children.at(-1).tag, 'details');
 assert.equal(card.children.at(-1).children[0].textContent, '版本信息');
+// Adopting a version marks the card so the choice stays visible after a reload.
+const other = {...candidate, id:'2', text:'别的版本'};
+renderCandidates({lyrics:[{text:'original'},{text:'second line'}],
+ candidates:{actual_query_attempts:attempts,candidates:[candidate, other]}}, {});
+assert.equal(box.children[1].className, 'candidate adopted');
+assert.equal(box.children[1].children[0].children[1].textContent, '已采用');
+assert.equal(box.children[2].className, 'candidate');
+assert.equal(box.children[2].children[0].children[1].textContent, '采用');
 """.replace("MODULE_URL", json.dumps((FRONTEND / "project-views.js").as_uri()))
     result = subprocess.run(
         [node, "--input-type=module", "-e", script],
@@ -191,6 +204,16 @@ def test_page_serves_all_explicit_module_dependencies(tmp_path):
                 r"from\s+['\"]\./([^'\"]+)['\"]", response.text
             ):
                 assert client.get("/" + dependency).status_code == 200
+
+
+def test_served_ui_always_revalidates_so_an_old_page_never_meets_a_new_script(tmp_path):
+    # The markup carries no build number, so heuristic caching could pair a
+    # cached page with a newer module graph and leave the UI half wired.
+    with TestClient(create_app(Settings(projects=tmp_path / "projects"))) as client:
+        for path in ("/", "/app.js", "/style.css"):
+            response = client.get(path)
+            assert response.status_code == 200, path
+            assert response.headers["cache-control"] == "no-cache", path
 
 
 def test_extracted_editor_keeps_manual_times_and_reads_current_selection():
